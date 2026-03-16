@@ -4,7 +4,7 @@ import gspread
 from datetime import datetime, timedelta
 import pytz
 
-# 1. Branding & UI (Must be the first Streamlit command)
+# Branding & UI (Must be the first Streamlit command)
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
 st.markdown("""
@@ -15,7 +15,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Data Connection
+# Data Connection
 @st.cache_data(ttl=600) # Cache for 10 mins to save API calls
 def get_data():
     gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
@@ -25,18 +25,22 @@ def get_data():
     rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
     return prod_df, rec_df
 
-# 4. Helper Function for Metrics
+# Helper Function for Metrics
 def get_delta_metrics(df):
     if df.empty or 'Timestamp' not in df.columns:
         return 0, 0
     
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+    # Convert Column to datetime and strip timezone for comparison
+    df['Timestamp'] = pd.to_datetime(df['Timestamp']).dt.tz_localize(None)
+    
+    # Get current time and strip timezone to match the column
     tz = pytz.timezone('US/Central')
-    now = datetime.now(tz)
+    now = datetime.now(tz).replace(tzinfo=None) # Make it naive to match Pandas
     
     yesterday = now - timedelta(days=1)
     day_before = now - timedelta(days=2)
     
+    # Perform the comparison
     current_leads = len(df[df['Timestamp'] > yesterday])
     previous_leads = len(df[(df['Timestamp'] > day_before) & (df['Timestamp'] <= yesterday)])
     
