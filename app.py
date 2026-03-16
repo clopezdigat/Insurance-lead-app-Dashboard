@@ -11,42 +11,49 @@ st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 # Custom CSS for Burgundy/Gold theme
 st.markdown(f"""
     <style>
-    /* 1. GLOBAL OVERRIDE */
+    /* 1. FORCE GLOBAL THEME */
     :root {{
         --primary-color: #3b0710 !important;
     }}
 
-    .stApp {{ 
-        border-top: 8px solid #D4AF37;
-    }}
-
-    /* 2. THE PERMANENT FIX FOR PRODUCT/RECRUITMENT TABS */
-    
-    /* Force the container of the segmented control */
-    div[data-testid="stSegmentedControl"] {{
+    /* 2. THE "ULTIMATE" TAB OVERRIDE */
+    /* Target the Segmented Control and all its children */
+    div[data-testid="stSegmentedControl"] [data-baseweb="segmented-control"] {{
         background-color: transparent !important;
+        border: 1px solid #D4AF37 !important;
+        border-radius: 8px !important;
     }}
 
-    /* Target the SELECTED tab button */
+    /* Target the ACTIVE tab's background and border */
     div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
         background-color: #3b0710 !important;
-        border: 1px solid #D4AF37 !important;
+        color: #D4AF37 !important;
         box-shadow: none !important;
     }}
 
-    /* Target the TEXT/LABEL inside the selected tab (The most stubborn part) */
-    div[data-testid="stSegmentedControl"] button[aria-checked="true"] * {{
+    /* Target the ACTIVE tab's text (forcing gold) */
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"] div {{
         color: #D4AF37 !important;
     }}
 
-    /* Target the UNSELECTED tabs to ensure they stay Burgundy text */
-    div[data-testid="stSegmentedControl"] button[aria-checked="false"] * {{
+    /* Target the INACTIVE tab's text (forcing burgundy) */
+    div[data-testid="stSegmentedControl"] button[aria-checked="false"] div {{
         color: #3b0710 !important;
     }}
 
-    /* Kill the red sliding indicator bar that sits behind/under the tabs */
-    div[data-testid="stSegmentedControl"] div[role="tablist"] div[data-baseweb="tab-highlight"] {{
+    /* KILL THE RED FOCUS RING (The bright red border that appears when clicked) */
+    div[data-testid="stSegmentedControl"] button:focus,
+    div[data-testid="stSegmentedControl"] button:active,
+    div[data-testid="stSegmentedControl"] button:hover {{
+        outline: none !important;
+        box-shadow: none !important;
+        background-color: #f5f5f5 !important; /* Light neutral hover */
+    }}
+
+    /* Special rule for the selected hover state */
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"]:hover {{
         background-color: #3b0710 !important;
+        opacity: 0.9;
     }}
 
     /* 3. REST OF YOUR BRANDING */
