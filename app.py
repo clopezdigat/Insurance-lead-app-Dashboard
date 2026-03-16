@@ -44,20 +44,17 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* STICKY PERIMETER LOGIC */
-    /* This targets the container holding the search row and gives it the gold borders */
+    /* REFINED STICKY SECTION */
+    /* Target only the container with our anchor to prevent extra bars */
     div[data-testid="stVerticalBlock"] > div:has(div.sticky-anchor) {{
         position: sticky;
         top: -1px; 
         z-index: 1000;
         background-color: white;
-        /* These act as the gold bars */
         border-top: 2px solid #D4AF37;
         border-bottom: 2px solid #D4AF37;
-        padding-top: 15px;
-        padding-bottom: 15px;
-        margin-top: 10px;
-        margin-bottom: 20px;
+        padding: 15px 0px;
+        margin: 10px 0px 20px 0px;
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -141,22 +138,28 @@ def process_table(df, s_query, s_filter):
         now = datetime.now()
         f['Days Idle'] = (now - f['Timestamp']).dt.days
         f['Days Idle'] = f['Days Idle'].apply(lambda x: max(x, 0) if pd.notnull(x) else 0)
+    
     if s_query: 
         f = f[f['Full Name'].str.contains(s_query, case=False, na=False)]
     if s_filter != "All": 
         f = f[f['Status'] == s_filter]
+    
     if 'Email Address' in f.columns:
         f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
     if 'Phone Number' in f.columns:
         f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
+    
     cols = list(f.columns)
     base = [c for c in cols if c not in ['📧', '📞', 'Days Idle']]
+    
+    # Position Days Idle left of Timestamp
     if 'Timestamp' in base:
         base.insert(base.index('Timestamp'), 'Days Idle')
     if 'Email Address' in base:
         base.insert(base.index('Email Address') + 1, '📧')
     if 'Phone Number' in base:
         base.insert(base.index('Phone Number') + 1, '📞')
+        
     return f[base]
 
 table_config = {
@@ -194,9 +197,8 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- STICKY SECTION WITH BORDERS AS PERIMETER ---
+    # --- CLEAN STICKY SECTION ---
     with st.container():
-        # This invisible div allows the CSS to find this specific container
         st.markdown('<div class="sticky-anchor"></div>', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
