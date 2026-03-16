@@ -59,7 +59,7 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- DATA ENGINE ---
+# --- GLOBAL UTILITIES ---
 @st.cache_data(ttl=600)
 def get_data():
     try:
@@ -128,6 +128,32 @@ def render_market_insights(df, timeframe_label):
                 else: st.caption("No data.")
             else: st.caption("Column missing.")
 
+def process_table(df, s_query, s_filter):
+    if df.empty: return df
+    f = df.copy()
+    if s_query: 
+        f = f[f['Full Name'].str.contains(s_query, case=False, na=False)]
+    if s_filter != "All": 
+        f = f[f['Status'] == s_filter]
+    if 'Email Address' in f.columns:
+        f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
+    if 'Phone Number' in f.columns:
+        f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
+    cols = list(f.columns)
+    base = [c for c in cols if c not in ['📧', '📞']]
+    if 'Email Address' in base:
+        base.insert(base.index('Email Address') + 1, '📧')
+    if 'Phone Number' in base:
+        base.insert(base.index('Phone Number') + 1, '📞')
+    return f[base]
+
+table_config = {
+    "Email Address": st.column_config.TextColumn("Email Address"),
+    "📧": st.column_config.LinkColumn(" ", display_text="Email"),
+    "Phone Number": st.column_config.TextColumn("Phone Number"),
+    "📞": st.column_config.LinkColumn(" ", display_text="Call"),
+}
+
 # --- DASHBOARD EXECUTION ---
 try:
     raw_prod_df, raw_rec_df, last_sync = get_data()
@@ -142,8 +168,6 @@ try:
             st.cache_data.clear()
             st.rerun()
         st.caption(f"Last Sync: {last_sync} CST")
-        
-        # RESTORED SIDEBAR LINKS
         st.markdown("---")
         st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
         st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
@@ -157,7 +181,6 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- STICKY SEARCH ---
     with st.container():
         st.markdown('<div class="sticky-search-wrapper"></div>', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
@@ -173,61 +196,26 @@ try:
                 st.session_state.status_filter = "All"
                 st.rerun()
 
-    def process_table(df, s_query, s_filter):
-        if df.empty: 
-            return df
-        f = df.copy()
-        
-        # Apply Filters
-        if s_query: 
-            f = f[f['Full Name'].str.contains(s_query, case=False, na=False)]
-        if s_filter != "All": 
-            f = f[f['Status'] == s_filter]
-        
-        # Create Action Links
-        if 'Email Address' in f.columns:
-            f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
-        if 'Phone Number' in f.columns:
-            f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
-            
-        # Logic to position icons next to their respective data
-        cols = list(f.columns)
-        base = [c for c in cols if c not in ['📧', '📞']]
-        
-        if 'Email Address' in base:
-            base.insert(base.index('Email Address') + 1, '📧')
-        if 'Phone Number' in base:
-            base.insert(base.index('Phone Number') + 1, '📞')
-            
-        return f[base]
     # --- TABS WITH INTEGRATED ANALYTICS ---
-t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
+    t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
 
-# Configuration for the clickable icons
-table_config = {
-    "Email Address": st.column_config.TextColumn("Email Address"),
-    "📧": st.column_config.LinkColumn(" ", display_text="Email"),
-    "Phone Number": st.column_config.TextColumn("Phone Number"),
-    "📞": st.column_config.LinkColumn(" ", display_text="Call"),
-}
+    with t1:
+        render_market_insights(filtered_prod, timeframe)
+        st.dataframe(
+            process_table(raw_prod_df, search_query, status_filter), 
+            use_container_width=True, 
+            hide_index=True, 
+            column_config=table_config
+        )
 
-with t1:
-    render_market_insights(filtered_prod, timeframe)
-    st.dataframe(
-        process_table(raw_prod_df, search_query, status_filter), 
-        use_container_width=True, 
-        hide_index=True, 
-        column_config=table_config
-    )
-
-with t2:
-    render_market_insights(filtered_rec, timeframe)
-    st.dataframe(
-        process_table(raw_rec_df, search_query, status_filter), 
-        use_container_width=True, 
-        hide_index=True, 
-        column_config=table_config
-    )
+    with t2:
+        render_market_insights(filtered_rec, timeframe)
+        st.dataframe(
+            process_table(raw_rec_df, search_query, status_filter), 
+            use_container_width=True, 
+            hide_index=True, 
+            column_config=table_config
+        )
 
     # --- UPDATE FORM ---
     st.markdown("---")
