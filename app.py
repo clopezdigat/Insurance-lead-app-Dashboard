@@ -107,8 +107,14 @@ def get_filtered_data(df, timeframe_label):
     
     now = datetime.now()
     mapping = {
-        "1 hr": timedelta(hours=1), "12 hr": timedelta(hours=12), "24 hr": timedelta(days=1),
-        "1 week": timedelta(weeks=1), "1 month": timedelta(days=30), "All Time": None
+        "1 hr": timedelta(hours=1), 
+        "12 hr": timedelta(hours=12), 
+        "24 hr": timedelta(days=1),
+        "1 week": timedelta(weeks=1), 
+        "1 month": timedelta(days=30), 
+        "6 month": timedelta(days=182),
+        "1 year": timedelta(days=365),
+        "All Time": None
     }
     
     duration = mapping.get(timeframe_label)
@@ -135,7 +141,6 @@ def render_market_insights(df, timeframe_label):
                 fig = px.line(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
                 fig.update_traces(line_shape='spline', line_width=3)
                 
-                # Dynamic X-axis formatting
                 x_format = "%H:00" if is_hourly else "%b %d"
                 
                 fig.update_layout(
@@ -157,13 +162,15 @@ def render_market_insights(df, timeframe_label):
                 st.plotly_chart(fig, use_container_width=True)
         with v3:
             st.write("**Top Interests**")
-            if 'Interest Selected' in df.columns:
-                int_data = df['Interest Selected'].value_counts().head(3).reset_index()
-                if not int_data.empty:
-                    fig = px.bar(int_data, x='count', y='Interest Selected', orientation='h', color_discrete_sequence=['#D4AF37'])
-                    fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), xaxis_title=None, yaxis_title=None,
-                                      xaxis=dict(showgrid=False), yaxis=dict(showgrid=False))
-                    st.plotly_chart(fig, use_container_width=True)
+            if 'Interest Selected' in df.columns and not df.empty:
+                int_data = df['Interest Selected'].value_counts().head(3).index.tolist()
+                if int_data:
+                    for i, interest in enumerate(int_data, 1):
+                        st.markdown(f"{i}. {interest}")
+                else:
+                    st.caption("No data available")
+            else:
+                st.caption("No data available")
 
 def process_table(df, s_query, s_filter):
     if df.empty: return df
@@ -208,7 +215,8 @@ try:
 
     with st.sidebar:
         st.title("🛡️ Admin Panel")
-        timeframe = st.selectbox("Performance Period:", ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "All Time"], index=3)
+        # Restored and expanded list
+        timeframe = st.selectbox("Performance Period:", ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "6 month", "1 year", "All Time"], index=3)
         if st.button("Refresh Data"):
             st.cache_data.clear()
             st.rerun()
