@@ -42,17 +42,28 @@ st.markdown(f"""
         border-bottom: 2px solid #f0f2f6;
     }}
 
-    /* CUSTOM SEGMENTED CONTROL (Category Tabs) */
-    /* Target the selected state for Burgundy background and Gold text */
+    /* --- FIXING THE SEGMENTED CONTROL COLORS --- */
+    /* Target the container to remove the red outline */
+    div[data-testid="stSegmentedControl"] {{
+        border: none !important;
+    }}
+
+    /* Selected State: Burgundy Background, Gold Text, Gold Border */
     div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
         background-color: #3b0710 !important;
         color: #D4AF37 !important;
         border: 1px solid #D4AF37 !important;
+        box-shadow: none !important;
     }}
-    
-    /* Ensure the text stays Gold when selected and hovered */
-    div[data-testid="stSegmentedControl"] button[aria-checked="true"]:hover {{
+
+    /* Unselected Hover State: Slight Gold Text */
+    div[data-testid="stSegmentedControl"] button:hover {{
         color: #D4AF37 !important;
+    }}
+
+    /* Neutral State for unselected text */
+    div[data-testid="stSegmentedControl"] button {{
+        color: #31333F;
     }}
 
     /* Align the Reset button */
@@ -200,7 +211,7 @@ try:
             st.rerun()
         st.caption(f"Last Sync: {last_sync} CST")
         st.markdown("---")
-        # Links exactly as originally had them
+        # Links exactly as originally formatted
         st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
         st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
 
