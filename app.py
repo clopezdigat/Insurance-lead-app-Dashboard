@@ -15,10 +15,10 @@ st.markdown(f"""
     
     .hero-box {{
         background-color: #3b0710;
-        padding: 1.2rem 2rem; 
+        padding: 2rem;
         border-radius: 10px;
         border-left: 10px solid #D4AF37;
-        margin-bottom: 0.2rem; /* Reduced to pull metrics closer */
+        margin-bottom: 2rem;
     }}
     .hero-box h1 {{
         color: #D4AF37 !important;
@@ -27,13 +27,8 @@ st.markdown(f"""
     }}
     .hero-box p {{
         color: white;
-        margin: 2px 0 0 0;
+        margin: 5px 0 0 0;
         opacity: 0.9;
-    }}
-
-    /* Tighten metric spacing even further */
-    [data-testid="stMetric"] {{
-        margin-bottom: -1.5rem;
     }}
 
     div.stButton > button {{
@@ -44,20 +39,29 @@ st.markdown(f"""
         transition: all 0.3s ease;
     }}
 
-    /* STICKY NAV SECTION - Fixed label clipping */
+    div.stButton > button:hover {{
+        background-color: #D4AF37 !important;
+        color: #3b0710 !important;
+        border: 2px solid #3b0710;
+    }}
+
+    /* STICKY SECTION REVERTED */
     div[data-testid="stVerticalBlock"] > div:has(div.sticky-nav-container) {{
         position: sticky;
-        top: 0px; 
+        top: 0; 
         z-index: 9999;
         background-color: white !important;
-        padding-top: 0px !important;
+        padding: 20px 0px 0px 0px !important; 
     }}
     
     .sticky-nav-container {{
         background-color: white;
-        padding-top: 15px; /* Internal padding ensures labels are visible at the top */
-        padding-bottom: 5px;
-        margin-top: -10px; /* Pulls closer to metrics */
+        margin: 0px;
+    }}
+
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 10px;
+        background-color: white;
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -110,7 +114,7 @@ def render_market_insights(df, timeframe_label):
                 rule = 'H' if timeframe_label in ["1 hr", "12 hr", "24 hr"] else 'D'
                 trend = df.set_index('Timestamp').resample(rule).size().reset_index(name='Leads')
                 fig = px.line(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
-                fig.update_layout(height=180, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig, use_container_width=True)
         with v2:
             st.write("**Market Share**")
@@ -118,7 +122,7 @@ def render_market_insights(df, timeframe_label):
             if loc_col and not df.empty:
                 loc_data = df[loc_col].replace('', 'N/A').fillna('N/A').value_counts().reset_index()
                 fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c'])
-                fig.update_layout(height=180, margin=dict(l=0,r=0,t=10,b=0), showlegend=False)
+                fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
         with v3:
             st.write("**Top Interests**")
@@ -126,7 +130,7 @@ def render_market_insights(df, timeframe_label):
                 int_data = df['Interest Selected'].value_counts().head(3).reset_index()
                 if not int_data.empty:
                     fig = px.bar(int_data, x='count', y='Interest Selected', orientation='h', color_discrete_sequence=['#D4AF37'])
-                    fig.update_layout(height=180, margin=dict(l=0,r=0,t=10,b=0), xaxis_title=None, yaxis_title=None)
+                    fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), xaxis_title=None, yaxis_title=None)
                     st.plotly_chart(fig, use_container_width=True)
 
 def process_table(df, s_query, s_filter):
@@ -190,7 +194,6 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- EXPANDED STICKY CONTAINER ---
     with st.container():
         st.markdown('<div class="sticky-nav-container">', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
@@ -246,7 +249,7 @@ try:
                 headers = [h.strip() for h in ws.row_values(1)]
                 ws.update_cell(cell.row, headers.index("Status") + 1, new_st)
                 ws.update_cell(cell.row, headers.index("Notes") + 1, new_note)
-                st.success(f"Changes saved for {row['Full Name']}!")
+                st.success(f"Changes saved!")
                 st.cache_data.clear()
                 st.rerun()
 
