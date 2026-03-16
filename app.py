@@ -97,10 +97,8 @@ def get_filtered_data(df, timeframe_label):
     return len(current_df), (len(current_df) - prev_count), current_df
 
 def render_market_insights(df, timeframe_label):
-    """Reusable analytics component for the specific dataset"""
     with st.expander("📈 Market Insights", expanded=True):
         v1, v2, v3 = st.columns(3)
-        
         with v1:
             st.write("**Activity Trend**")
             if not df.empty:
@@ -110,7 +108,6 @@ def render_market_insights(df, timeframe_label):
                 fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 fig.update_xaxes(tickformat="%H:%M" if rule == 'H' else "%b %d")
                 st.plotly_chart(fig, use_container_width=True)
-
         with v2:
             st.write("**Location Trend**")
             loc_col = next((c for c in ['State', 'City'] if c in df.columns), None)
@@ -120,7 +117,6 @@ def render_market_insights(df, timeframe_label):
                 fig.update_traces(textposition='inside', textinfo='percent+label')
                 fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
-
         with v3:
             st.write("**Top Interests**")
             if 'Interest Selected' in df.columns:
@@ -129,10 +125,8 @@ def render_market_insights(df, timeframe_label):
                     fig = px.bar(int_data, x='count', y='Interest Selected', orientation='h', color_discrete_sequence=['#D4AF37'])
                     fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), xaxis_title=None, yaxis_title=None)
                     st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.caption("No interests found.")
-            else:
-                st.caption("Column missing.")
+                else: st.caption("No data.")
+            else: st.caption("Column missing.")
 
 # --- DASHBOARD EXECUTION ---
 try:
@@ -144,10 +138,15 @@ try:
     with st.sidebar:
         st.title("🛡️ Admin Panel")
         timeframe = st.selectbox("Performance Period:", ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "All Time"], index=3)
-        if st.button("🔄 Refresh Data"):
+        if st.button("Refresh Data"):
             st.cache_data.clear()
             st.rerun()
         st.caption(f"Last Sync: {last_sync} CST")
+        
+        # RESTORED SIDEBAR LINKS
+        st.markdown("---")
+        st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
+        st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
 
     st.markdown(f'<div class="hero-box"><h1>📋 Executive Oversight</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
 
@@ -158,7 +157,7 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- STICKY SEARCH WITH RESET ---
+    # --- STICKY SEARCH ---
     with st.container():
         st.markdown('<div class="sticky-search-wrapper"></div>', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
@@ -169,7 +168,7 @@ try:
             status_filter = st.selectbox("Status:", status_list, index=status_list.index(st.session_state.status_filter), key="st_select")
         with s3:
             st.write(" ") 
-            if st.button("♻️ Reset"):
+            if st.button("Reset"):
                 st.session_state.search_query = ""
                 st.session_state.status_filter = "All"
                 st.rerun()
@@ -183,17 +182,14 @@ try:
         if 'Phone Number' in f.columns: f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
         return f
 
-    # --- TABS WITH INTEGRATED ANALYTICS ---
     t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
     cfg = {"📧": st.column_config.LinkColumn(" "), "📞": st.column_config.LinkColumn(" ")}
     
     with t1:
-        # These analytics now only use Product data
         render_market_insights(filtered_prod, timeframe)
         st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=cfg)
     
     with t2:
-        # These analytics now only use Recruitment data
         render_market_insights(filtered_rec, timeframe)
         st.dataframe(process_table(raw_rec_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=cfg)
 
@@ -211,7 +207,9 @@ try:
             row = active_df[active_df['Email Address'] == selected_lead].iloc[0]
             cs1, cs2 = st.columns(2)
             with cs1:
-                new_st = st.selectbox("New Status:", ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"], index=0)
+                st_opts = ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
+                curr_st = row.get('Status', 'New')
+                new_st = st.selectbox("New Status:", st_opts, index=st_opts.index(curr_st) if curr_st in st_opts else 0)
             with cs2:
                 new_note = st.text_area("Notes:", value=str(row.get('Notes', '')), height=68)
             if st.button("Save Changes to Google Sheet", use_container_width=True):
