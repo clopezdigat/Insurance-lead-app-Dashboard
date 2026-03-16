@@ -11,10 +11,8 @@ st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 # Custom CSS for Hero Box, Button Inversion, and Sticky Search
 st.markdown(f"""
     <style>
-    /* Top Gold Bar accent */
     .stApp {{ border-top: 8px solid #D4AF37; }}
     
-    /* The "Hero Box" Title Section */
     .hero-box {{
         background-color: #3b0710;
         padding: 2rem;
@@ -33,7 +31,6 @@ st.markdown(f"""
         opacity: 0.9;
     }}
 
-    /* Button Styling & Hover Inversion */
     div.stButton > button {{
         background-color: #3b0710;
         color: #D4AF37;
@@ -48,8 +45,6 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* Sticky Search Bar Logic */
-    /* This pins the search container to the top just under the gold bar */
     div[data-testid="stVerticalBlock"] > div:has(div.sticky-search-wrapper) {{
         position: sticky;
         top: 0rem;
@@ -60,7 +55,6 @@ st.markdown(f"""
         border-bottom: 2px solid #f0f2f6;
     }}
 
-    /* Standard Elements */
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
     </style>
 """, unsafe_allow_html=True)
@@ -136,19 +130,17 @@ try:
         </div>
     """, unsafe_allow_html=True)
 
-    # Process Metrics & Chart Data
     p_count, p_delta, filtered_prod = get_filtered_data(raw_prod_df, timeframe)
     r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
     
-    # Top-Level Metrics
     m1, m2 = st.columns(2)
     m1.metric(f"Product Leads ({timeframe})", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits ({timeframe})", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # Collapsible Analytics Section
+    # --- UPDATED ANALYTICS SECTION ---
     with st.expander("📈 Strategic Analytics & Market Trends", expanded=False):
         v1, v2, v3 = st.columns(3)
-        combined = pd.concat([filtered_prod.assign(Cat='Product'), filtered_rec.assign(Cat='Recruit')])
+        combined = pd.concat([filtered_prod.assign(Source='Product'), filtered_rec.assign(Source='Recruitment')])
 
         with v1:
             st.write("**Activity Trend**")
@@ -156,29 +148,42 @@ try:
                 rule = 'H' if timeframe in ["1 hr", "12 hr", "24 hr"] else 'D'
                 trend = combined.set_index('Timestamp').resample(rule).size().reset_index(name='Leads')
                 fig = px.line(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
-                fig.update_layout(height=240, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                fig.update_layout(height=240, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig, use_container_width=True)
 
         with v2:
-            st.write("**Market Share**")
-            loc_col = 'State' if 'State' in filtered_prod.columns else ('City' if 'City' in filtered_prod.columns else None)
+            st.write("**Location Trend**")
+            loc_col = next((c for c in ['State', 'City'] if c in filtered_prod.columns), None)
             if loc_col and not filtered_prod.empty:
-                loc_data = filtered_prod[loc_col].value_counts().reset_index()
-                fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c'])
-                fig.update_layout(height=240, margin=dict(l=0,r=0,t=0,b=0), showlegend=False)
+                # Clean N/A data
+                loc_data = filtered_prod[loc_col].replace('', 'N/A').fillna('N/A').value_counts().reset_index()
+                fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, 
+                             color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c'])
+                fig.update_traces(textposition='inside', textinfo='percent+label')
+                fig.update_layout(height=240, margin=dict(l=0,r=0,t=10,b=0), showlegend=True, 
+                                  legend=dict(orientation="h", yanchor="bottom", y=-0.5, xanchor="center", x=0.5))
                 st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No location data found.")
 
         with v3:
             st.write("**Top Interests**")
-            int_col = 'Product Interest' if 'Product Interest' in filtered_prod.columns else ('Interest' if 'Interest' in filtered_prod.columns else None)
+            # Checking multiple possible column names for interest
+            int_col = next((c for c in ['Product Interest', 'Interest', 'Category'] if c in filtered_prod.columns), None)
+            
             if int_col and not filtered_prod.empty:
-                int_data = filtered_prod[int_col].value_counts().reset_index()
-                fig = px.bar(int_data, x='count', y=int_col, orientation='h', color_discrete_sequence=['#D4AF37'])
-                fig.update_layout(height=240, margin=dict(l=0,r=0,t=0,b=0), xaxis_title=None, yaxis_title=None)
-                st.plotly_chart(fig, use_container_width=True)
+                # Get Top 3 or whatever is available
+                int_data = filtered_prod[int_col].value_counts().head(3).reset_index()
+                if not int_data.empty:
+                    fig = px.bar(int_data, x='count', y=int_col, orientation='h', color_discrete_sequence=['#D4AF37'])
+                    fig.update_layout(height=240, margin=dict(l=0,r=0,t=10,b=0), xaxis_title=None, yaxis_title=None)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No specific interests recorded.")
+            else:
+                st.info("No interest data found.")
 
     # --- STICKY LEAD INVENTORY & SEARCH ---
-    # We wrap this in a container to trigger the CSS sticky logic
     with st.container():
         st.markdown('<div class="sticky-search-wrapper"></div>', unsafe_allow_html=True)
         st.markdown("### 🔍 Lead Inventory")
@@ -243,7 +248,6 @@ try:
             with cs2:
                 new_note = st.text_area("Update Notes:", value=str(row_data.get('Notes', '')), height=68)
             
-            # Button spans the width of the update inputs (u2)
             if st.button("Save Changes to Google Sheet", use_container_width=True):
                 gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
                 ws = gc.open("Lead Manager").worksheet(target_ws)
