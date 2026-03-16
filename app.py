@@ -15,10 +15,10 @@ st.markdown(f"""
     
     .hero-box {{
         background-color: #3b0710;
-        padding: 2rem;
+        padding: 1.5rem 2rem; /* Reduced vertical padding */
         border-radius: 10px;
         border-left: 10px solid #D4AF37;
-        margin-bottom: 2rem;
+        margin-bottom: 0.5rem; /* Heavily reduced margin to close the gap */
     }}
     .hero-box h1 {{
         color: #D4AF37 !important;
@@ -29,6 +29,11 @@ st.markdown(f"""
         color: white;
         margin: 5px 0 0 0;
         opacity: 0.9;
+    }}
+
+    /* Tighten metric spacing */
+    [data-testid="stMetric"] {{
+        margin-bottom: -1rem;
     }}
 
     div.stButton > button {{
@@ -45,24 +50,18 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* EXPANDED STICKY SECTION: Includes Search + Tabs */
+    /* STICKY NAV SECTION - Tightened vertical spacing */
     div[data-testid="stVerticalBlock"] > div:has(div.sticky-nav-container) {{
         position: sticky;
         top: 0; 
         z-index: 9999;
         background-color: white !important;
-        padding: 20px 0px 0px 0px !important; 
+        padding: 10px 0px 0px 0px !important; /* Reduced top padding */
     }}
     
     .sticky-nav-container {{
         background-color: white;
         margin: 0px;
-    }}
-
-    /* Ensure tabs within the sticky container look clean */
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 10px;
-        background-color: white;
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -195,11 +194,13 @@ try:
         st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
         st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
 
+    # Hero Box with reduced margin
     st.markdown(f'<div class="hero-box"><h1>📋 Executive Oversight</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
 
     p_count, p_delta, filtered_prod = get_filtered_data(raw_prod_df, timeframe)
     r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
     
+    # Delta Metrics sitting tighter to the content
     m1, m2 = st.columns(2)
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
@@ -207,7 +208,6 @@ try:
     # --- EXPANDED STICKY CONTAINER ---
     with st.container():
         st.markdown('<div class="sticky-nav-container">', unsafe_allow_html=True)
-        # 1. Search Logic
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
             search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
@@ -221,11 +221,9 @@ try:
                 st.session_state.status_filter = "All"
                 st.rerun()
         
-        # 2. Tabs moved inside the sticky container
         t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- MAIN CONTENT (Linked to Tabs) ---
     with t1:
         render_market_insights(filtered_prod, timeframe)
         st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
@@ -233,7 +231,7 @@ try:
         render_market_insights(filtered_rec, timeframe)
         st.dataframe(process_table(raw_rec_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
 
-    # --- UPDATE FORM (Bottom Section) ---
+    # --- UPDATE FORM ---
     st.markdown("---")
     st.subheader("📝 Update Lead")
     u1, u2 = st.columns([1, 2])
