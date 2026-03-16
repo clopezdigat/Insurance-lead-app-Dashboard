@@ -15,7 +15,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Data Connection (with Header Cleaning)
+# Data Connection
 @st.cache_data(ttl=600)
 def get_data():
     gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
@@ -24,11 +24,17 @@ def get_data():
     prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
     rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
     
-    # Clean headers to prevent 'Full Name' errors
-    prod_df.columns = [c.strip() for c in prod_df.columns]
-    rec_df.columns = [c.strip() for c in rec_df.columns]
+    # Clean headers and ensure essential columns exist
+    for df in [prod_df, rec_df]:
+        df.columns = [c.strip() for c in df.columns]
+        if 'Status' not in df.columns: df['Status'] = 'New'
+        if 'Notes' not in df.columns: df['Notes'] = ''
     
-    return prod_df, rec_df
+    # Capture the sync time
+    tz = pytz.timezone('US/Central')
+    sync_time = datetime.now(tz).strftime("%I:%M %p")
+        
+    return prod_df, rec_df, sync_time
 
 # Metric Logic
 def get_delta_metrics(df):
@@ -46,10 +52,10 @@ def get_delta_metrics(df):
 
 # Main Dashboard
 try:
-    raw_prod_df, raw_rec_df = get_data()
+    raw_prod_df, raw_rec_df, last_sync = get_data()
     st.title("📋 Executive Oversight")
 
-    # Search & filter
+    # Search & Filter
     st.markdown("### 🔍 Search & Filter")
     f_col1, f_col2 = st.columns(2)
     with f_col1:
@@ -58,25 +64,24 @@ try:
         all_statuses = ["All", "New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
         selected_status = st.selectbox("Filter by Status:", all_statuses)
 
-    # Filtering Logic (Formatting moved to column_config)
-    def apply_filters(df):
+    def process_display_df(df):
         filtered = df.copy()
         if search_query and 'Full Name' in filtered.columns:
             filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
-        if selected_status != "All" and 'Status' in filtered.columns:
+        if selected_status != "All":
             filtered = filtered[filtered['Status'] == selected_status]
         
-        # Prepare URL strings for the LinkColumn (without markdown brackets)
+        # Background Link Logic
         if 'Email Address' in filtered.columns:
-            filtered['Email Address'] = filtered['Email Address'].apply(lambda x: f"mailto:{x}")
+            filtered['Email Address'] = filtered['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
         if 'Phone Number' in filtered.columns:
             filtered['Phone Number'] = filtered['Phone Number'].apply(
-                lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}"
+                lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else ""
             )
         return filtered
 
-    display_prod = apply_filters(raw_prod_df)
-    display_rec = apply_filters(raw_rec_df)
+    display_prod = process_display_df(raw_prod_df)
+    display_rec = process_display_df(raw_rec_df)
 
     # Metrics
     p_count, p_delta = get_delta_metrics(raw_prod_df)
@@ -85,35 +90,20 @@ try:
     m_col1.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
     m_col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
-    # Table configuration
-    # Setting display_text=None shows the actual Email/Phone instead of a button
+    # Table Configuration
+    # display_text=None ensures raw data shows while links work in background
     column_configuration = {
-        "Email Address": st.column_config.LinkColumn(
-            "Email Address",
-            display_text=None  # This shows the actual email address
-        ),
-        "Phone Number": st.column_config.LinkColumn(
-            "Phone Number",
-            display_text=None  # This shows the actual phone number
-        ),
+        "Email Address": st.column_config.LinkColumn("Email Address", display_text=None),
+        "Phone Number": st.column_config.LinkColumn("Phone Number", display_text=None),
     }
 
-    # Display Tabs
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
     with tab1:
-        st.dataframe(
-            display_prod.rename(index=lambda x: x + 1), 
-            use_container_width=True,
-            column_config=column_configuration
-        )
+        st.dataframe(display_prod.rename(index=lambda x: x + 1), use_container_width=True, column_config=column_configuration)
     with tab2:
-        st.dataframe(
-            display_rec.rename(index=lambda x: x + 1), 
-            use_container_width=True,
-            column_config=column_configuration
-        )
+        st.dataframe(display_rec.rename(index=lambda x: x + 1), use_container_width=True, column_config=column_configuration)
 
-    # CRM update section
+    # CRM Update Section
     st.markdown("---")
     st.subheader("📝 Update Lead Progress")
     c1, c2 = st.columns([1, 2])
@@ -148,13 +138,17 @@ try:
         except Exception as e:
             st.error(f"Update failed: {e}")
 
+    # Sidebar Navigation & Timestamp
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown(f"**Last Sync:** {last_sync} CST")
+        if st.button("🔄 Refresh Data Now"):
+            st.cache_data.clear()
+            st.rerun()
+        st.markdown("---")
+        st.markdown("### 🔗 Digital Suite")
+        st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
+        st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
+
 except Exception as e:
     st.error(f"Error: {e}")
-
-with st.sidebar:
-    st.markdown("### 🔗 Digital Suite")
-    st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
-    st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
-    if st.button("🔄 Refresh Data"):
-        st.cache_data.clear()
-        st.rerun()
