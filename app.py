@@ -202,4 +202,8 @@ try:
 
     with st.sidebar:
         st.markdown("---")
-        st.write
+        st.write(f"[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
+        st.write(f"[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
+
+except Exception as e:
+    st.error(f"Error: {e}")
