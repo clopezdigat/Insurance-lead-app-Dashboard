@@ -10,7 +10,8 @@ st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
 st.markdown(f"""
     <style>
-    .stApp {{ border-top: 8px solid #3b0710; }}
+    /* RESTORED TOP BAR TO GOLD */
+    .stApp {{ border-top: 8px solid #D4AF37; }}
     
     .hero-box {{
         background-color: #3b0710;
@@ -44,18 +45,19 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* STICKY SEARCH SECTION - NO BORDERS */
+    /* STICKY SEARCH SECTION WITH ADDED PADDING TO PREVENT CLIPPING */
     div[data-testid="stVerticalBlock"] > div:has(div.sticky-search-area) {{
         position: sticky;
         top: 0; 
         z-index: 9999;
         background-color: white !important;
-        padding: 10px 0px !important;
+        /* Increased top padding to ensure labels aren't cut off */
+        padding: 20px 0px 10px 0px !important; 
     }}
     
     .sticky-search-area {{
         background-color: white;
-        padding: 10px 0px;
+        padding: 5px 0px;
         margin: 0px;
     }}
 
@@ -198,7 +200,7 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- STICKY SEARCH INTERFACE (NO BARS) ---
+    # --- STICKY SEARCH INTERFACE ---
     with st.container():
         st.markdown('<div class="sticky-search-area">', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
