@@ -174,24 +174,60 @@ try:
                 st.rerun()
 
     def process_table(df, s_query, s_filter):
-        if df.empty: return df
-        f = df.copy()
-        if s_query: f = f[f['Full Name'].str.contains(s_query, case=False, na=False)]
-        if s_filter != "All": f = f[f['Status'] == s_filter]
-        if 'Email Address' in f.columns: f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
-        if 'Phone Number' in f.columns: f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
-        return f
+    if df.empty: return df
+    f = df.copy()
+    
+    # Apply Filters
+    if s_query: 
+        f = f[f['Full Name'].str.contains(s_query, case=False, na=False)]
+    if s_filter != "All": 
+        f = f[f['Status'] == s_filter]
+    
+    # Create Action Links
+    if 'Email Address' in f.columns:
+        f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
+    if 'Phone Number' in f.columns:
+        f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
+        
+    # Logic to position icons next to their respective data
+    cols = list(f.columns)
+    base = [c for c in cols if c not in ['📧', '📞']]
+    
+    if 'Email Address' in base:
+        base.insert(base.index('Email Address') + 1, '📧')
+    if 'Phone Number' in base:
+        base.insert(base.index('Phone Number') + 1, '📞')
+        
+    return f[base]
 
-    t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
-    cfg = {"📧": st.column_config.LinkColumn(" "), "📞": st.column_config.LinkColumn(" ")}
-    
-    with t1:
-        render_market_insights(filtered_prod, timeframe)
-        st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=cfg)
-    
-    with t2:
-        render_market_insights(filtered_rec, timeframe)
-        st.dataframe(process_table(raw_rec_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=cfg)
+    # --- TABS WITH INTEGRATED ANALYTICS ---
+t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
+
+# Configuration for the clickable icons
+table_config = {
+    "Email Address": st.column_config.TextColumn("Email Address"),
+    "📧": st.column_config.LinkColumn(" ", display_text="Email"),
+    "Phone Number": st.column_config.TextColumn("Phone Number"),
+    "📞": st.column_config.LinkColumn(" ", display_text="Call"),
+}
+
+with t1:
+    render_market_insights(filtered_prod, timeframe)
+    st.dataframe(
+        process_table(raw_prod_df, search_query, status_filter), 
+        use_container_width=True, 
+        hide_index=True, 
+        column_config=table_config
+    )
+
+with t2:
+    render_market_insights(filtered_rec, timeframe)
+    st.dataframe(
+        process_table(raw_rec_df, search_query, status_filter), 
+        use_container_width=True, 
+        hide_index=True, 
+        column_config=table_config
+    )
 
     # --- UPDATE FORM ---
     st.markdown("---")
