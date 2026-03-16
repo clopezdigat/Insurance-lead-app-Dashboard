@@ -18,30 +18,36 @@ st.markdown("""
 # Data Connection
 @st.cache_data(ttl=600)
 def get_data():
-    gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
-    sh = gc.open("Lead Manager")
-    
-    prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
-    rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
-    
-    for df in [prod_df, rec_df]:
-        df.columns = [c.strip() for c in df.columns]
-        if 'Status' not in df.columns: df['Status'] = 'New'
-        if 'Notes' not in df.columns: df['Notes'] = ''
-        # Ensure data is treated as strings to prevent the .includes error
-        df['Email Address'] = df['Email Address'].astype(str)
-        df['Phone Number'] = df['Phone Number'].astype(str)
-    
-    tz = pytz.timezone('US/Central')
-    sync_time = datetime.now(tz).strftime("%I:%M %p")
-    return prod_df, rec_df, sync_time
+    try:
+        gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+        sh = gc.open("Lead Manager")
+        
+        prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
+        rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
+        
+        # CLEANING: Strip spaces from all column names immediately
+        prod_df.columns = [c.strip() for c in prod_df.columns]
+        rec_df.columns = [c.strip() for c in rec_df.columns]
+        
+        # Ensure data is treated as strings to prevent JS crashes
+        for df in [prod_df, rec_df]:
+            if not df.empty:
+                for col in df.columns:
+                    df[col] = df[col].astype(str)
+        
+        tz = pytz.timezone('US/Central')
+        sync_time = datetime.now(tz).strftime("%I:%M %p")
+        return prod_df, rec_df, sync_time
+    except Exception as e:
+        st.error(f"Failed to connect to Google Sheets: {e}")
+        return pd.DataFrame(), pd.DataFrame(), "Error"
 
 # Metric Logic
 def get_delta_metrics(df):
     if df.empty or 'Timestamp' not in df.columns:
         return 0, 0
     temp_df = df.copy()
-    temp_df['Timestamp'] = pd.to_datetime(temp_df['Timestamp']).dt.tz_localize(None)
+    temp_df['Timestamp'] = pd.to_datetime(temp_df['Timestamp'], errors='coerce').dt.tz_localize(None)
     tz = pytz.timezone('US/Central')
     now = datetime.now(tz).replace(tzinfo=None)
     yesterday = now - timedelta(days=1)
@@ -65,6 +71,8 @@ try:
         selected_status = st.selectbox("Filter by Status:", all_statuses)
 
     def process_display_df(df):
+        if df.empty:
+            return df
         filtered = df.copy()
         if search_query and 'Full Name' in filtered.columns:
             filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
@@ -82,71 +90,77 @@ try:
     m_col1.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
     m_col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
-    # --- THE FINAL CLEAN SOLUTION ---
-    # We use TextColumn to show raw data. 
-    # To make them "functional" for her, we keep them as plain text 
-    # so she can double-click to copy, or we use Markdown if links are 100% required.
+    # Table Configuration - Clean Raw Text Only
     column_configuration = {
-        "Email Address": st.column_config.TextColumn(
-            "Email Address",
-            help="Double click to copy email"
-        ),
-        "Phone Number": st.column_config.TextColumn(
-            "Phone Number",
-            help="Double click to copy number"
-        ),
+        "Email Address": st.column_config.TextColumn("Email Address"),
+        "Phone Number": st.column_config.TextColumn("Phone Number"),
     }
 
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
     with tab1:
-        st.dataframe(
-            display_prod.rename(index=lambda x: x + 1), 
-            use_container_width=True, 
-            column_config=column_configuration
-        )
+        if not display_prod.empty:
+            st.dataframe(display_prod.rename(index=lambda x: x + 1), use_container_width=True, column_config=column_configuration)
+        else:
+            st.info("No Product Leads found.")
+            
     with tab2:
-        st.dataframe(
-            display_rec.rename(index=lambda x: x + 1), 
-            use_container_width=True, 
-            column_config=column_configuration
-        )
+        if not display_rec.empty:
+            st.dataframe(display_rec.rename(index=lambda x: x + 1), use_container_width=True, column_config=column_configuration)
+        else:
+            st.info("No Recruitment Leads found.")
 
     # CRM Update Section
     st.markdown("---")
     st.subheader("📝 Update Lead Progress")
     c1, c2 = st.columns([1, 2])
+    
     with c1:
         target = st.radio("Target Sheet:", ["Product", "Recruitment"], horizontal=True)
         df_to_use = raw_prod_df if target == "Product" else raw_rec_df
-        email_list = df_to_use['Email Address'].tolist() if 'Email Address' in df_to_use.columns else []
-        lead_email = st.selectbox("Select Lead to Edit:", email_list) if email_list else None
+        
+        # SAFETY CHECK: Only allow selection if the column exists
+        if not df_to_use.empty and 'Email Address' in df_to_use.columns:
+            email_list = df_to_use['Email Address'].unique().tolist()
+            lead_email = st.selectbox("Select Lead to Edit:", email_list)
+        else:
+            st.warning("No lead data found to edit.")
+            lead_email = None
     
     with c2:
         if lead_email:
-            lead_data = df_to_use[df_to_use['Email Address'] == lead_email].iloc[0]
-            col_s, col_n = st.columns(2)
-            with col_s:
-                status_options = ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
-                current_status = lead_data.get('Status', 'New')
-                idx = status_options.index(current_status) if current_status in status_options else 0
-                new_status = st.selectbox("New Status:", status_options, index=idx)
-            with col_n:
-                new_note = st.text_area("New Notes:", value=str(lead_data.get('Notes', '')))
+            # Find the lead data safely
+            match = df_to_use[df_to_use['Email Address'] == lead_email]
+            if not match.empty:
+                lead_data = match.iloc[0]
+                col_s, col_n = st.columns(2)
+                with col_s:
+                    status_options = ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
+                    current_status = lead_data.get('Status', 'New')
+                    idx = status_options.index(current_status) if current_status in status_options else 0
+                    new_status = st.selectbox("New Status:", status_options, index=idx)
+                with col_n:
+                    new_note = st.text_area("New Notes:", value=str(lead_data.get('Notes', '')))
 
-            if st.button("Save Changes to Google Sheet"):
-                try:
-                    gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
-                    sh = gc.open("Lead Manager")
-                    ws = sh.worksheet(target)
-                    cell = ws.find(lead_email)
-                    header = ws.row_values(1)
-                    ws.update_cell(cell.row, header.index("Status") + 1, new_status)
-                    ws.update_cell(cell.row, header.index("Notes") + 1, new_note)
-                    st.success("Updated successfully!")
-                    st.cache_data.clear()
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Update failed: {e}")
+                if st.button("Save Changes to Google Sheet"):
+                    try:
+                        gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+                        sh = gc.open("Lead Manager")
+                        ws = sh.worksheet(target)
+                        cell = ws.find(lead_email)
+                        header = ws.row_values(1)
+                        # Clean headers again for indexing
+                        clean_header = [h.strip() for h in header]
+                        
+                        if "Status" in clean_header:
+                            ws.update_cell(cell.row, clean_header.index("Status") + 1, new_status)
+                        if "Notes" in clean_header:
+                            ws.update_cell(cell.row, clean_header.index("Notes") + 1, new_note)
+                            
+                        st.success("Updated successfully!")
+                        st.cache_data.clear()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Update failed: {e}")
 
     with st.sidebar:
         st.markdown("---")
