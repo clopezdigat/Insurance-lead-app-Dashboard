@@ -28,6 +28,9 @@ def get_data():
         df.columns = [c.strip() for c in df.columns]
         if 'Status' not in df.columns: df['Status'] = 'New'
         if 'Notes' not in df.columns: df['Notes'] = ''
+        # Ensure data is treated as strings to prevent the .includes error
+        df['Email Address'] = df['Email Address'].astype(str)
+        df['Phone Number'] = df['Phone Number'].astype(str)
     
     tz = pytz.timezone('US/Central')
     sync_time = datetime.now(tz).strftime("%I:%M %p")
@@ -67,9 +70,6 @@ try:
             filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
         if selected_status != "All" and 'Status' in filtered.columns:
             filtered = filtered[filtered['Status'] == selected_status]
-        
-        # WE DO NOT ADD mailto: OR tel: TO THE DATA HERE.
-        # This ensures the dataframe itself stays clean.
         return filtered
 
     display_prod = process_display_df(raw_prod_df)
@@ -82,25 +82,23 @@ try:
     m_col1.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
     m_col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
-    # --- THE STABLE FIX ---
-    # We use LinkColumn but don't force a URL. 
-    # Streamlit will see the raw text and automatically treat it as a link if it looks like an email.
+    # --- THE FINAL CLEAN SOLUTION ---
+    # We use TextColumn to show raw data. 
+    # To make them "functional" for her, we keep them as plain text 
+    # so she can double-click to copy, or we use Markdown if links are 100% required.
     column_configuration = {
-        "Email Address": st.column_config.LinkColumn(
+        "Email Address": st.column_config.TextColumn(
             "Email Address",
-            display_text=None,
-            validate=None  # Removed complex validation to stay stable
+            help="Double click to copy email"
         ),
-        "Phone Number": st.column_config.LinkColumn(
+        "Phone Number": st.column_config.TextColumn(
             "Phone Number",
-            display_text=None,
-            validate=None
+            help="Double click to copy number"
         ),
     }
 
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
     with tab1:
-        # We pass the data exactly as it is in the Google Sheet
         st.dataframe(
             display_prod.rename(index=lambda x: x + 1), 
             use_container_width=True, 
