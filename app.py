@@ -25,7 +25,7 @@ authenticator = stauth.Authenticate(
 
 login_col1, login_col2, login_col3 = st.columns([1,2,3])
 with login_col2:
-    authenticator.login(labels={'login':'Agency Admin Login'}, location='main')
+    authenticator.login()
 
 # Login Logic
 authenticator.login()
