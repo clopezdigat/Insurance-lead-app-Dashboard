@@ -23,10 +23,6 @@ authenticator = stauth.Authenticate(
     st.secrets['cookie']['expiry_days']
 )
 
-login_col1, login_col2, login_col3 = st.columns([1,2,3])
-with login_col2:
-    authenticator.login()
-
 # Login Logic
 authenticator.login()
 if st.session_state["authentication_status"] is False:
