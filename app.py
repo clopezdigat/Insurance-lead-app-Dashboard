@@ -44,9 +44,8 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* REFINED STICKY SECTION */
-    /* Target only the container with our anchor to prevent extra bars */
-    div[data-testid="stVerticalBlock"] > div:has(div.sticky-anchor) {{
+    /* TARGETED STICKY SECTION - REMOVES EXTRA TOP BARS */
+    div[data-testid="stVerticalBlock"] > div:has(> div.sticky-anchor) {{
         position: sticky;
         top: -1px; 
         z-index: 1000;
@@ -152,7 +151,6 @@ def process_table(df, s_query, s_filter):
     cols = list(f.columns)
     base = [c for c in cols if c not in ['📧', '📞', 'Days Idle']]
     
-    # Position Days Idle left of Timestamp
     if 'Timestamp' in base:
         base.insert(base.index('Timestamp'), 'Days Idle')
     if 'Email Address' in base:
@@ -197,7 +195,7 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- CLEAN STICKY SECTION ---
+    # --- STICKY SECTION ---
     with st.container():
         st.markdown('<div class="sticky-anchor"></div>', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
