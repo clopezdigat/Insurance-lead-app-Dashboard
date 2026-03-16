@@ -40,19 +40,27 @@ st.markdown(f"""
         border-bottom: 2px solid #f0f2f6;
     }}
 
+    /* Target the Lead Category Picker (Segmented Control) */
     div[data-testid="stSegmentedControl"] {{
         border: none !important;
     }}
 
+    /* Unselected button text color */
+    div[data-testid="stSegmentedControl"] button {{
+        color: #3b0710 !important;
+    }}
+
+    /* Selected button styling */
     div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
         background-color: #3b0710 !important;
         color: #D4AF37 !important;
         border: 1px solid #D4AF37 !important;
-        box-shadow: none !important;
     }}
 
+    /* Hover effect */
     div[data-testid="stSegmentedControl"] button:hover {{
         color: #D4AF37 !important;
+        background-color: #5c0b1a !important; /* Slightly lighter burgundy */
     }}
 
     .reset-button-container {{
@@ -129,7 +137,7 @@ def get_filtered_data(df, timeframe_label):
     return len(current_df), (len(current_df) - prev_count), current_df
 
 def render_market_insights(df, timeframe_label):
-    with st.expander("📈 Strategic Analytics & Market Trends", expanded=True):
+    with st.expander("📈 Market Trends", expanded=True):
         v1, v2, v3 = st.columns(3)
         with v1:
             st.write("**Activity Trend**")
@@ -225,7 +233,7 @@ try:
         st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
         st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
 
-    st.markdown(f'<div class="hero-box"><h1>📋 Executive Oversight</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="hero-box"><h1>📋 Administrative Dashboard</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
 
     p_count, p_delta, filtered_prod = get_filtered_data(raw_prod_df, timeframe)
     r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
@@ -251,7 +259,7 @@ try:
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
-        view_mode = st.segmented_control("Lead Category:", options=["🛍️ Products", "🤝 Recruits"], default="🛍️ Products")
+        view_mode = st.segmented_control("Lead Category:", options=["🛍️ Product", "🤝 Recruitment"], default="🛍️ Products")
 
     if view_mode == "🛍️ Products":
         render_market_insights(filtered_prod, timeframe)
