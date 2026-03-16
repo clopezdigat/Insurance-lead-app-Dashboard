@@ -8,6 +8,7 @@ import plotly.express as px
 # --- BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
+# Custom CSS for Burgundy/Gold theme and Sticky Nav
 st.markdown(f"""
     <style>
     /* TOP BAR GOLD */
@@ -39,13 +40,20 @@ st.markdown(f"""
         transition: all 0.3s ease;
     }}
 
-    /* ONLY STICK THE NAV BLOCK */
+    div.stButton > button:hover {{
+        background-color: #D4AF37 !important;
+        color: #3b0710 !important;
+        border: 2px solid #3b0710;
+    }}
+
+    /* TARGETED STICKY CSS: Only sticks the wrapper container */
     div[data-testid="stVerticalBlock"] > div:has(div.nav-sticky-wrapper) {{
         position: sticky;
         top: 0; 
         z-index: 999;
         background-color: white !important;
-        padding-top: 10px !important;
+        padding-top: 15px !important;
+        padding-bottom: 10px !important;
         border-bottom: 2px solid #f0f2f6;
     }}
 
@@ -61,8 +69,11 @@ def get_data():
         sh = gc.open("Lead Manager")
         prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
         rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
+        
+        # Clean columns
         prod_df.columns = [c.strip() for c in prod_df.columns]
         rec_df.columns = [c.strip() for c in rec_df.columns]
+        
         tz = pytz.timezone('US/Central')
         sync_time = datetime.now(tz).strftime("%H:%M")
         return prod_df, rec_df, sync_time
@@ -73,21 +84,26 @@ def get_data():
 def get_filtered_data(df, timeframe_label):
     if df.empty or 'Timestamp' not in df.columns:
         return 0, 0, df
+    
     temp_df = df.copy()
     temp_df['Timestamp'] = pd.to_datetime(temp_df['Timestamp'], errors='coerce')
     temp_df = temp_df.dropna(subset=['Timestamp'])
+    
     now = datetime.now()
     mapping = {
         "1 hr": timedelta(hours=1), "12 hr": timedelta(hours=12), "24 hr": timedelta(days=1),
         "1 week": timedelta(weeks=1), "1 month": timedelta(days=30), "All Time": None
     }
+    
     duration = mapping.get(timeframe_label)
     if timeframe_label == "All Time":
         return len(temp_df), 0, temp_df
+    
     current_df = temp_df[temp_df['Timestamp'] > (now - duration)]
     prev_start = now - (duration * 2)
     prev_end = now - duration
     prev_count = len(temp_df[(temp_df['Timestamp'] > prev_start) & (temp_df['Timestamp'] <= prev_end)])
+    
     return len(current_df), (len(current_df) - prev_count), current_df
 
 def render_market_insights(df, timeframe_label):
@@ -166,9 +182,13 @@ try:
             st.cache_data.clear()
             st.rerun()
         st.caption(f"Last Sync: {last_sync} CST")
+        st.markdown("---")
+        st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
 
+    # Header section
     st.markdown(f'<div class="hero-box"><h1>📋 Executive Oversight</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
 
+    # Lead Deltas
     p_count, p_delta, filtered_prod = get_filtered_data(raw_prod_df, timeframe)
     r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
     
@@ -176,7 +196,8 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- STICKY NAV ONLY ---
+    # --- STICKY NAV SECTION ---
+    # Everything inside this container stays at the top when scrolling
     with st.container():
         st.markdown('<div class="nav-sticky-wrapper">', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
@@ -195,7 +216,7 @@ try:
         tab_product, tab_recruit = st.tabs(["🛍️ Products", "🤝 Recruits"])
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- NON-STICKY DATA ---
+    # --- SCROLLABLE DATA SECTION ---
     with tab_product:
         render_market_insights(filtered_prod, timeframe)
         st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
@@ -204,11 +225,39 @@ try:
         render_market_insights(filtered_rec, timeframe)
         st.dataframe(process_table(raw_rec_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
 
-    # --- UPDATE FORM (STAYS AT BOTTOM) ---
+    # --- UPDATE FORM ---
     st.markdown("---")
     st.subheader("📝 Update Lead")
     u1, u2 = st.columns([1, 2])
-    # ... (Rest of the update logic remains same)
+    with u1:
+        target_ws = st.radio("Sheet to Update:", ["Product", "Recruitment"], horizontal=True)
+        active_df = raw_prod_df if target_ws == "Product" else raw_rec_df
+        if not active_df.empty:
+            lead_options = active_df.apply(lambda x: f"{x['Full Name']} ({x['Email Address']})", axis=1).tolist()
+            selected_lead_display = st.selectbox("Find Lead:", lead_options)
+            selected_email = selected_lead_display.split('(')[-1].strip(')')
+        else: selected_email = None
+
+    with u2:
+        if selected_email:
+            row = active_df[active_df['Email Address'] == selected_email].iloc[0]
+            cs1, cs2 = st.columns(2)
+            with cs1:
+                st_opts = ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
+                curr_st = row.get('Status', 'New')
+                new_st = st.selectbox("Update Status:", st_opts, index=st_opts.index(curr_st) if curr_st in st_opts else 0)
+            with cs2:
+                new_note = st.text_area("Edit Notes:", value=str(row.get('Notes', '')), height=68)
+            if st.button("Save Changes to Google Sheet", use_container_width=True):
+                gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+                ws = gc.open("Lead Manager").worksheet(target_ws)
+                cell = ws.find(selected_email)
+                headers = [h.strip() for h in ws.row_values(1)]
+                ws.update_cell(cell.row, headers.index("Status") + 1, new_st)
+                ws.update_cell(cell.row, headers.index("Notes") + 1, new_note)
+                st.success(f"Changes saved!")
+                st.cache_data.clear()
+                st.rerun()
 
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"Error in application: {e}")
