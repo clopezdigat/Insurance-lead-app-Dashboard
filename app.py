@@ -24,6 +24,11 @@ def get_data():
     
     prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
     rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
+    
+    # NEW: Clean headers by stripping whitespace
+    prod_df.columns = [c.strip() for c in prod_df.columns]
+    rec_df.columns = [c.strip() for c in rec_df.columns]
+    
     return prod_df, rec_df
 
 # Helper Function for Metrics
