@@ -160,8 +160,8 @@ try:
             st.rerun()
         st.caption(f"Last Sync: {last_sync} CST")
         st.markdown("---")
-        st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
-        st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
+        st.write("[Client Portal](https://insurance-inquiry.streamlit.app/)")
+        st.write("[Recruitment Portal](https://insurance-recruitment.streamlit.app/)")
 
     st.markdown(f'<div class="hero-box"><h1>📋 Administrative Dashboard</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
     
