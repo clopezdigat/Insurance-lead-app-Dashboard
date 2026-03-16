@@ -6,6 +6,7 @@ import pytz
 import plotly.express as px
 import streamlit_authenticator as stauth
 import copy
+import time
 
 # BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
@@ -30,6 +31,14 @@ if st.session_state["authentication_status"] is False:
 elif st.session_state["authentication_status"] is None:
     st.warning('Please enter your username and password')
 elif st.session_state["authentication_status"]:
+    # Auto-hiding message
+    success_placeholder = st.empty()
+    if "message_shown" not in st.session_state:
+        success_placeholder.success("Success! Your are now viewing the secure lead data.")
+        time.sleep(5)
+        success_placeholder.empty()
+        st.session_state.message_shown = True
+        
     # Custom CSS for Burgundy/Gold theme
     st.markdown(f"""
         <style>
@@ -244,7 +253,6 @@ elif st.session_state["authentication_status"]:
             st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
     
         st.markdown(f'<div class="hero-box"><h1>📋 Administrative Dashboard</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
-        st.info("Success! You are now viewing the secure lead data.")
         
         p_count, p_delta, filtered_prod = get_filtered_data(raw_prod_df, timeframe)
         r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
