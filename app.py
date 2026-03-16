@@ -8,7 +8,7 @@ import plotly.express as px
 # --- BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
-# Custom CSS for Burgundy/Gold theme and Sticky Nav Fix
+# Custom CSS for Burgundy/Gold theme and UI behavior
 st.markdown(f"""
     <style>
     /* TOP BAR GOLD */
@@ -32,7 +32,7 @@ st.markdown(f"""
         opacity: 0.9;
     }}
 
-    /* TARGETED STICKY CSS: Only sticks the navigation wrapper */
+    /* STICKY HEADER */
     div[data-testid="stVerticalBlock"] > div:has(div.nav-sticky-header) {{
         position: sticky;
         top: 0; 
@@ -42,7 +42,20 @@ st.markdown(f"""
         border-bottom: 2px solid #f0f2f6;
     }}
 
-    /* Align the Reset button with the input fields */
+    /* CUSTOM SEGMENTED CONTROL (Lead Category Tabs) */
+    /* Target the selected state for Segmented Control */
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
+        background-color: #3b0710 !important;
+        color: #D4AF37 !important;
+        border-color: #D4AF37 !important;
+    }}
+    
+    /* Target the hover state */
+    div[data-testid="stSegmentedControl"] button:hover {{
+        color: #D4AF37 !important;
+    }}
+
+    /* Align the Reset button */
     .reset-button-container {{
         padding-top: 28px;
     }}
@@ -75,7 +88,6 @@ def get_data():
         prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
         rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
         
-        # Clean columns
         prod_df.columns = [c.strip() for c in prod_df.columns]
         rec_df.columns = [c.strip() for c in rec_df.columns]
         
@@ -187,11 +199,12 @@ try:
             st.cache_data.clear()
             st.rerun()
         st.caption(f"Last Sync: {last_sync} CST")
+        st.markdown("---")
+        # RESTORED SIDEBAR LINK
+        st.write("[🌐 Client Inquiry Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
 
-    # Header section
     st.markdown(f'<div class="hero-box"><h1>📋 Executive Oversight</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
 
-    # Metrics
     p_count, p_delta, filtered_prod = get_filtered_data(raw_prod_df, timeframe)
     r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
     
@@ -203,7 +216,6 @@ try:
     with st.container():
         st.markdown('<div class="nav-sticky-header"></div>', unsafe_allow_html=True)
         
-        # Row 1: Aligned Inputs and Reset
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
             search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
@@ -218,10 +230,8 @@ try:
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
-        # Row 2: Category Selection (The "Tabs")
-        # We use a segmented control or radio outside of st.tabs to prevent the whole table from sticking
         view_mode = st.segmented_control(
-            "Select Lead Category:", 
+            "Lead Category:", 
             options=["🛍️ Products", "🤝 Recruits"], 
             default="🛍️ Products"
         )
