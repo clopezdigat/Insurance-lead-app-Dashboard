@@ -174,32 +174,32 @@ try:
                 st.rerun()
 
     def process_table(df, s_query, s_filter):
-    if df.empty: return df
-    f = df.copy()
-    
-    # Apply Filters
-    if s_query: 
-        f = f[f['Full Name'].str.contains(s_query, case=False, na=False)]
-    if s_filter != "All": 
-        f = f[f['Status'] == s_filter]
-    
-    # Create Action Links
-    if 'Email Address' in f.columns:
-        f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
-    if 'Phone Number' in f.columns:
-        f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
+        if df.empty: 
+            return df
+        f = df.copy()
         
-    # Logic to position icons next to their respective data
-    cols = list(f.columns)
-    base = [c for c in cols if c not in ['📧', '📞']]
-    
-    if 'Email Address' in base:
-        base.insert(base.index('Email Address') + 1, '📧')
-    if 'Phone Number' in base:
-        base.insert(base.index('Phone Number') + 1, '📞')
+        # Apply Filters
+        if s_query: 
+            f = f[f['Full Name'].str.contains(s_query, case=False, na=False)]
+        if s_filter != "All": 
+            f = f[f['Status'] == s_filter]
         
-    return f[base]
-
+        # Create Action Links
+        if 'Email Address' in f.columns:
+            f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
+        if 'Phone Number' in f.columns:
+            f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
+            
+        # Logic to position icons next to their respective data
+        cols = list(f.columns)
+        base = [c for c in cols if c not in ['📧', '📞']]
+        
+        if 'Email Address' in base:
+            base.insert(base.index('Email Address') + 1, '📧')
+        if 'Phone Number' in base:
+            base.insert(base.index('Phone Number') + 1, '📞')
+            
+        return f[base]
     # --- TABS WITH INTEGRATED ANALYTICS ---
 t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
 
