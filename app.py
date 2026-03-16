@@ -1,14 +1,15 @@
-import streamlit as st
 import streamlit_authenticator as stauth
+# Replace 'YourPasswordHere' with her actual password
+temp_hash = stauth.Hasher.hash('Password')
+st.heading(f"HASH: {temp_hash}")
+st.stop() # This freezes the app here so you can copy the text
+
+import streamlit as st
 import pandas as pd
 import gspread
 from datetime import datetime, timedelta
 import pytz
 import plotly.express as px
-
-# Log in 
-hashed_pw = stauth.Hasher.hash('Password')
-print(f"COPY THIS HASH: {hashed_pw}")
 
 # --- BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
