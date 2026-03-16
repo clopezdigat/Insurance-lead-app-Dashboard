@@ -7,7 +7,6 @@ import pytz
 # Branding & UI
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
-
 st.markdown("""
     <style>
     .stApp { border-top: 6px solid #D4AF37; }
@@ -25,7 +24,7 @@ def get_data():
     prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
     rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
     
-    # NEW: Clean headers by stripping whitespace
+    # Clean headers by stripping whitespace
     prod_df.columns = [c.strip() for c in prod_df.columns]
     rec_df.columns = [c.strip() for c in rec_df.columns]
     
@@ -70,11 +69,14 @@ try:
     # Apply Logic to Dataframes
     def apply_filters(df):
         filtered = df.copy()
-        if search_query:
-            # Case-insensitive search
+        
+        # Smart Search: Only run if 'Full Name' exists in this specific sheet
+        if search_query and 'Full Name' in filtered.columns:
             filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
-        if selected_status != "All":
+            
+        if selected_status != "All" and 'Status' in filtered.columns:
             filtered = filtered[filtered['Status'] == selected_status]
+            
         return filtered
 
     display_prod = apply_filters(raw_prod_df)
