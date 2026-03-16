@@ -7,10 +7,6 @@ import pytz
 # Branding & UI
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
-if st.sidebar.text_input("Agency Access Key", type="password") != st.secrets["admin_password"]:
-    st.info("Please enter the access key in the sidebar to view the dashboard.")
-    st.stop()
-
 st.markdown("""
     <style>
     .stApp { border-top: 6px solid #D4AF37; }
