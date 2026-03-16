@@ -42,16 +42,16 @@ st.markdown(f"""
         border-bottom: 2px solid #f0f2f6;
     }}
 
-    /* CUSTOM SEGMENTED CONTROL (Lead Category Tabs) */
-    /* Target the selected state for Segmented Control */
+    /* CUSTOM SEGMENTED CONTROL (Category Tabs) */
+    /* Target the selected state for Burgundy background and Gold text */
     div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
         background-color: #3b0710 !important;
         color: #D4AF37 !important;
-        border-color: #D4AF37 !important;
+        border: 1px solid #D4AF37 !important;
     }}
     
-    /* Target the hover state */
-    div[data-testid="stSegmentedControl"] button:hover {{
+    /* Ensure the text stays Gold when selected and hovered */
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"]:hover {{
         color: #D4AF37 !important;
     }}
 
@@ -200,8 +200,9 @@ try:
             st.rerun()
         st.caption(f"Last Sync: {last_sync} CST")
         st.markdown("---")
-        # RESTORED SIDEBAR LINK
-        st.write("[🌐 Client Inquiry Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
+        # Links exactly as originally had them
+        st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
+        st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
 
     st.markdown(f'<div class="hero-box"><h1>📋 Executive Oversight</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
 
