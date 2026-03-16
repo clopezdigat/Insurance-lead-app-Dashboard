@@ -5,8 +5,6 @@ from datetime import datetime, timedelta
 import pytz
 import plotly.express as px
 import streamlit_authenticator as stauth
-import copy
-import time
 
 # BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
@@ -31,14 +29,6 @@ if st.session_state["authentication_status"] is False:
 elif st.session_state["authentication_status"] is None:
     st.warning('Please enter your username and password')
 elif st.session_state["authentication_status"]:
-    # Auto-hiding message
-    success_placeholder = st.empty()
-    if "message_shown" not in st.session_state:
-        success_placeholder.success("Success! Your are now viewing the secure lead data.")
-        time.sleep(5)
-        success_placeholder.empty()
-        st.session_state.message_shown = True
-        
     # Custom CSS for Burgundy/Gold theme
     st.markdown(f"""
         <style>
