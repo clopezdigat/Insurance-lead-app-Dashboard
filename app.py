@@ -151,12 +151,14 @@ def process_table(df, s_query, s_filter):
     if 'Phone Number' in f.columns:
         f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
         
-    # Reorder columns
+    # Reorder columns: Days Idle moved to the left of Timestamp
     cols = list(f.columns)
     base = [c for c in cols if c not in ['📧', '📞', 'Days Idle']]
     
-    if 'Full Name' in base:
-        base.insert(base.index('Full Name') + 1, 'Days Idle')
+    if 'Timestamp' in base:
+        base.insert(base.index('Timestamp'), 'Days Idle')
+    
+    # Keep the quick-action icons next to their data
     if 'Email Address' in base:
         base.insert(base.index('Email Address') + 1, '📧')
     if 'Phone Number' in base:
