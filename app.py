@@ -40,28 +40,31 @@ st.markdown(f"""
         border-bottom: 2px solid #f0f2f6;
     }}
 
-    /* Target the Lead Category Picker (Segmented Control) */
-    div[data-testid="stSegmentedControl"] {{
+    /* --- SPECIFIC FIX FOR SEGMENTED CONTROL --- */
+    /* Target the container to kill the default red border */
+    div[data-testid="stSegmentedControl"] [data-baseweb="segmented-control"] {{
+        border: 1px solid #D4AF37 !important;
+        border-radius: 8px !important;
+    }}
+
+    /* Target the individual buttons */
+    div[data-testid="stSegmentedControl"] button {{
+        color: #3b0710 !important;
         border: none !important;
     }}
 
-    /* Unselected button text color */
-    div[data-testid="stSegmentedControl"] button {{
-        color: #3b0710 !important;
-    }}
-
-    /* Selected button styling */
+    /* Target the selected state (the one that stays red) */
     div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
         background-color: #3b0710 !important;
         color: #D4AF37 !important;
-        border: 1px solid #D4AF37 !important;
     }}
 
-    /* Hover effect */
-    div[data-testid="stSegmentedControl"] button:hover {{
-        color: #D4AF37 !important;
-        background-color: #5c0b1a !important; /* Slightly lighter burgundy */
+    /* Remove the red focus ring when clicking */
+    div[data-testid="stSegmentedControl"] button:focus {{
+        outline: none !important;
+        box-shadow: none !important;
     }}
+    /* --- END FIX --- */
 
     .reset-button-container {{
         padding-top: 28px;
