@@ -42,7 +42,7 @@ st.markdown(f"""
         border-bottom: 2px solid #f0f2f6;
     }}
 
-    /* FIXED SEGMENTED CONTROL COLORS */
+    /* SEGMENTED CONTROL COLORS */
     div[data-testid="stSegmentedControl"] {{
         border: none !important;
     }}
@@ -110,12 +110,12 @@ def get_filtered_data(df, timeframe_label):
     
     now = datetime.now()
     mapping = {
-        "1 hr": timedelta(hours=1), "12 hr": timedelta(hours=12), "24 hr": timedelta(days=1),
-        "1 week": timedelta(weeks=1), "1 month": timedelta(days=30), "All Time": None
+        "1h": timedelta(hours=1), "12h": timedelta(hours=12), "24h": timedelta(days=1),
+        "1w": timedelta(weeks=1), "1m": timedelta(days=30), "All": None
     }
     
     duration = mapping.get(timeframe_label)
-    if timeframe_label == "All Time":
+    if timeframe_label == "All":
         return len(temp_df), 0, temp_df
     
     current_df = temp_df[temp_df['Timestamp'] > (now - duration)]
@@ -131,10 +131,9 @@ def render_market_insights(df, timeframe_label):
         with v1:
             st.write("**Activity Trend**")
             if not df.empty:
-                rule = 'H' if timeframe_label in ["1 hr", "12 hr", "24 hr"] else 'D'
+                rule = 'H' if timeframe_label in ["1h", "12h", "24h"] else 'D'
                 trend = df.set_index('Timestamp').resample(rule).size().reset_index(name='Leads')
                 fig = px.line(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
-                # CLEANER CHART CONFIG
                 fig.update_traces(line_shape='spline', line_width=3)
                 fig.update_layout(
                     height=200, margin=dict(l=0,r=0,t=10,b=0), 
@@ -144,11 +143,15 @@ def render_market_insights(df, timeframe_label):
                 )
                 st.plotly_chart(fig, use_container_width=True)
         with v2:
-            st.write("**Market Share**")
+            st.write("**Location Trend**")
             loc_col = next((c for c in ['State', 'City'] if c in df.columns), None)
             if loc_col and not df.empty:
+                # Fill blanks with N/A for clear labeling
                 loc_data = df[loc_col].replace('', 'N/A').fillna('N/A').value_counts().reset_index()
-                fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c'])
+                fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, 
+                             color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c'])
+                # Move labels to the chart slices
+                fig.update_traces(textposition='inside', textinfo='label+percent')
                 fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
         with v3:
@@ -204,7 +207,7 @@ try:
 
     with st.sidebar:
         st.title("🛡️ Admin Panel")
-        timeframe = st.selectbox("Performance Period:", ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "All Time"], index=3)
+        timeframe = st.selectbox("Performance Period:", ["1h", "12h", "24h", "1w", "1m", "All"], index=3)
         if st.button("Refresh Data"):
             st.cache_data.clear()
             st.rerun()
@@ -219,8 +222,8 @@ try:
     r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
     
     m1, m2 = st.columns(2)
-    m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
-    m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
+    m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All" else None)
+    m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All" else None)
 
     # --- STICKY NAVIGATION BAR ---
     with st.container():
@@ -258,7 +261,6 @@ try:
         active_df = raw_prod_df if target_ws == "Product" else raw_rec_df
         if not active_df.empty:
             lead_options = active_df.apply(lambda x: f"{x['Full Name']} ({x['Email Address']})", axis=1).tolist()
-            # ADDING THE PLACEHOLDER LOGIC
             lead_options.insert(0, "Select a lead...") 
             selected_lead_display = st.selectbox("Find Lead:", lead_options)
             
