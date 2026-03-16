@@ -11,8 +11,35 @@ st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 # Custom CSS for Burgundy/Gold theme
 st.markdown(f"""
     <style>
-    .stApp {{ border-top: 8px solid #D4AF37; }}
+    /* 1. NUCLEAR THEME OVERRIDE */
+    /* This redefines the 'primary red' variable Streamlit is using */
+    :root {{
+        --primary-color: #3b0710 !important;
+    }}
+
+    .stApp {{ 
+        border-top: 8px solid #D4AF37;
+        --st-primary-color: #3b0710 !important;
+    }}
     
+    /* 2. FORCING SEGMENTED CONTROL COLORS */
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
+        background-color: #3b0710 !important;
+        color: #D4AF37 !important;
+    }}
+
+    /* 3. FORCING RADIO BUTTONS (Sheet to Update) */
+    /* This targets the little circles in the radio buttons */
+    div[data-testid="stRadio"] div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] {{
+        color: #3b0710 !important;
+    }}
+    
+    /* Force the radio circle color */
+    div[data-testid="stRadio"] label div[data-baseweb="radio"] div {{
+        background-color: #3b0710 !important;
+    }}
+
+    /* 4. REST OF YOUR BRANDING */
     .hero-box {{
         background-color: #3b0710;
         padding: 2rem;
@@ -39,48 +66,6 @@ st.markdown(f"""
         padding: 15px 0px 10px 0px !important;
         border-bottom: 2px solid #f0f2f6;
     }}
-
-    /* --- NUCLEAR CSS OVERRIDE FOR SEGMENTED CONTROL --- */
-    
-    /* 1. Target the main container border and background */
-    div[data-testid="stSegmentedControl"] > div {{
-        border: 1px solid #D4AF37 !important;
-        background-color: transparent !important;
-        padding: 2px !important;
-        border-radius: 8px !important;
-    }}
-
-    /* 2. Target ALL buttons inside the control to force Burgundy text */
-    div[data-testid="stSegmentedControl"] button {{
-        color: #3b0710 !important;
-        border: none !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
-    }}
-
-    /* 3. Target the SELECTED button (forcing Burgundy background + Gold text) */
-    div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
-        background-color: #3b0710 !important;
-        color: #D4AF37 !important;
-        box-shadow: none !important;
-    }}
-
-    /* 4. Kill the "Red Glow" hover/focus states completely */
-    div[data-testid="stSegmentedControl"] button:hover, 
-    div[data-testid="stSegmentedControl"] button:focus,
-    div[data-testid="stSegmentedControl"] button:active {{
-        background-color: #D4AF37 !important; /* Gold hover */
-        color: #3b0710 !important; /* Burgundy text on hover */
-        outline: none !important;
-        box-shadow: none !important;
-    }}
-
-    /* 5. Force the active tab indicator (the sliding red bar) to be Burgundy */
-    div[data-testid="stSegmentedControl"] div[role="tablist"] > div {{
-        background-color: #3b0710 !important;
-    }}
-
-    /* --- END FIX --- */
 
     .reset-button-container {{
         padding-top: 28px;
