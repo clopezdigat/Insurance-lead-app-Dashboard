@@ -44,21 +44,20 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* FIXED STICKY HEADER CSS */
-    div[data-testid="stVerticalBlock"] > div:has(div.sticky-wrapper) {{
+    /* STICKY PERIMETER LOGIC */
+    /* This targets the container holding the search row and gives it the gold borders */
+    div[data-testid="stVerticalBlock"] > div:has(div.sticky-anchor) {{
         position: sticky;
-        top: -1px; /* Slight offset ensures the top border isn't clipped by the browser */
+        top: -1px; 
         z-index: 1000;
         background-color: white;
-        padding-bottom: 5px;
-    }}
-    
-    .sticky-wrapper {{
+        /* These act as the gold bars */
         border-top: 2px solid #D4AF37;
         border-bottom: 2px solid #D4AF37;
-        padding: 15px 0px;
-        background-color: white;
-        margin-bottom: 10px;
+        padding-top: 15px;
+        padding-bottom: 15px;
+        margin-top: 10px;
+        margin-bottom: 20px;
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -103,7 +102,7 @@ def get_filtered_data(df, timeframe_label):
     return len(current_df), (len(current_df) - prev_count), current_df
 
 def render_market_insights(df, timeframe_label):
-    with st.expander("📈 Market Insights", expanded=True):
+    with st.expander("📈 Strategic Analytics & Market Trends", expanded=True):
         v1, v2, v3 = st.columns(3)
         with v1:
             st.write("**Activity Trend**")
@@ -115,7 +114,7 @@ def render_market_insights(df, timeframe_label):
                 fig.update_xaxes(tickformat="%H:%M" if rule == 'H' else "%b %d")
                 st.plotly_chart(fig, use_container_width=True)
         with v2:
-            st.write("**Location Trend**")
+            st.write("**Market Share**")
             loc_col = next((c for c in ['State', 'City'] if c in df.columns), None)
             if loc_col and not df.empty:
                 loc_data = df[loc_col].replace('', 'N/A').fillna('N/A').value_counts().reset_index()
@@ -195,9 +194,10 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- UPDATED STICKY SECTION ---
+    # --- STICKY SECTION WITH BORDERS AS PERIMETER ---
     with st.container():
-        st.markdown('<div class="sticky-wrapper">', unsafe_allow_html=True)
+        # This invisible div allows the CSS to find this specific container
+        st.markdown('<div class="sticky-anchor"></div>', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
             search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
@@ -210,7 +210,6 @@ try:
                 st.session_state.search_query = ""
                 st.session_state.status_filter = "All"
                 st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
     t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
     with t1:
