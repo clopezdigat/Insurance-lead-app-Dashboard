@@ -13,8 +13,8 @@ st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 # Auth Setup
 credentials = dict(st.secrets['credentials'])
 credentials['usernames'] = dict(credentials['usernames'])
-for username in credentials['usernames']:
-    credentials['usernames'][username] = dict(credentials['usernames'][username])
+for user in credentials['usernames']:
+    credentials['usernames'][user] = dict(credentials['usernames'][user])
 
 authenticator = stauth.Authenticate(
     credentials,
@@ -22,6 +22,10 @@ authenticator = stauth.Authenticate(
     st.secrets['cookie']['key'],
     st.secrets['cookie']['expiry_days']
 )
+
+login_col1, login_col2, login_col3 = st.columns([1,2,3])
+with login_col2:
+    authenticator.login(button_name='Agency Admin Login')
 
 # Login Logic
 authenticator.login()
@@ -229,6 +233,11 @@ elif st.session_state["authentication_status"]:
     
         with st.sidebar:
             st.title("🛡️ Admin Panel")
+            
+            st.write(f"Welcome, **{st.session_state['name']}**")
+            authenticator.logout('Logout', 'sidebar')
+            st.markdown("---")
+            
             timeframe = st.selectbox("Performance Period:", ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "6 month", "1 year", "All Time"], index=3)
             if st.button("Refresh Data"):
                 st.cache_data.clear()
@@ -239,7 +248,8 @@ elif st.session_state["authentication_status"]:
             st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
     
         st.markdown(f'<div class="hero-box"><h1>📋 Administrative Dashboard</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
-    
+        st.info("Success! You are now viewing the secure lead data.")
+        
         p_count, p_delta, filtered_prod = get_filtered_data(raw_prod_df, timeframe)
         r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
         
