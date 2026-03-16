@@ -5,13 +5,16 @@ from datetime import datetime, timedelta
 import pytz
 import plotly.express as px
 import streamlit_authenticator as stauth
+import copy
 
 # BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
 # Auth Setup
+credentials = copy.deepcopy(st.secrets['credentials'])
+
 authenticator = stauth.Authenticate(
-    st.secrets['credentials'],
+    credentials,
     st.secrets['cookie']['name'],
     st.secrets['cookie']['key'],
     st.secrets['cookie']['expiry_days']
