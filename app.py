@@ -34,36 +34,72 @@ def get_data():
         st.error(f"Connection Error: {e}")
         return pd.DataFrame(), pd.DataFrame(), "Error"
 
-# Metric Logic (The "deltatime stuff")
-def get_delta_metrics(df):
+# Updated Metric Logic for Custom Timeframes
+def get_delta_metrics(df, timeframe_label):
     if df.empty or 'Timestamp' not in df.columns:
         return 0, 0
+    
     temp_df = df.copy()
-    # Convert to datetime, handles various formats safely
     temp_df['Timestamp'] = pd.to_datetime(temp_df['Timestamp'], errors='coerce').dt.tz_localize(None)
+    
     tz = pytz.timezone('US/Central')
     now = datetime.now(tz).replace(tzinfo=None)
-    yesterday = now - timedelta(days=1)
-    day_before = now - timedelta(days=2)
     
-    current_leads = len(temp_df[temp_df['Timestamp'] > yesterday])
-    previous_leads = len(temp_df[(temp_df['Timestamp'] > day_before) & (temp_df['Timestamp'] <= yesterday)])
+    # Define mapping for delta windows
+    # Format: timedelta(current_window_duration)
+    mapping = {
+        "1 hr": timedelta(hours=1),
+        "12 hr": timedelta(hours=12),
+        "24 hr": timedelta(days=1),
+        "1 week": timedelta(weeks=1),
+        "1 month": timedelta(days=30),
+        "6 month": timedelta(days=182),
+        "1 year": timedelta(days=365),
+        "All Time": None
+    }
+    
+    delta_duration = mapping.get(timeframe_label)
+    
+    if timeframe_label == "All Time":
+        return len(temp_df), 0  # No delta for all time
+    
+    current_threshold = now - delta_duration
+    previous_threshold = now - (delta_duration * 2)
+    
+    current_leads = len(temp_df[temp_df['Timestamp'] > current_threshold])
+    previous_leads = len(temp_df[(temp_df['Timestamp'] > previous_threshold) & (temp_df['Timestamp'] <= current_threshold)])
+    
     return current_leads, (current_leads - previous_leads)
 
 # Main Dashboard
 try:
     raw_prod_df, raw_rec_df, last_sync = get_data()
+    
+    # --- Sidebar for Timeframe Selection ---
+    with st.sidebar:
+        st.title("⚙️ Settings")
+        timeframe = st.selectbox(
+            "Performance Period:",
+            ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "6 month", "1 year", "All Time"],
+            index=2 # Defaults to 24 hr
+        )
+        st.markdown("---")
+        st.markdown(f"**Last Sync:** {last_sync} CST")
+        if st.button("🔄 Refresh Data"):
+            st.cache_data.clear()
+            st.rerun()
+
     st.title("📋 Executive Oversight")
 
-    # Metrics Section (Restored)
-    p_count, p_delta = get_delta_metrics(raw_prod_df)
-    r_count, r_delta = get_delta_metrics(raw_rec_df)
+    # Metrics Section with Dynamic Timeframe
+    p_count, p_delta = get_delta_metrics(raw_prod_df, timeframe)
+    r_count, r_delta = get_delta_metrics(raw_rec_df, timeframe)
     
     m_col1, m_col2 = st.columns(2)
     with m_col1:
-        st.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
+        st.metric(f"Product Leads ({timeframe})", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     with m_col2:
-        st.metric("New Recruits (24h)", r_count, delta=int(r_delta))
+        st.metric(f"Recruits ({timeframe})", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
     # Search & Filter
     st.markdown("### 🔍 Search & Filter")
@@ -83,30 +119,26 @@ try:
         if selected_status != "All" and 'Status' in filtered.columns:
             filtered = filtered[filtered['Status'] == selected_status]
         
-        # Action columns (Keep main data clean)
+        # Action columns
         if 'Email Address' in filtered.columns:
             filtered['📧'] = filtered['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
         if 'Phone Number' in filtered.columns:
             filtered['📞'] = filtered['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
             
-        # Column Ordering: Sandwich the icons next to the data
+        # Reorder columns
         cols = list(filtered.columns)
         base_cols = [c for c in cols if c not in ['📧', '📞']]
-        
         if 'Email Address' in base_cols:
-            idx = base_cols.index('Email Address') + 1
-            base_cols.insert(idx, '📧')
-            
+            base_cols.insert(base_cols.index('Email Address') + 1, '📧')
         if 'Phone Number' in base_cols:
-            idx = base_cols.index('Phone Number') + 1
-            base_cols.insert(idx, '📞')
+            base_cols.insert(base_cols.index('Phone Number') + 1, '📞')
             
         return filtered[base_cols]
 
     display_prod = process_display_df(raw_prod_df)
     display_rec = process_display_df(raw_rec_df)
 
-    # Table Configuration
+    # Table Config
     column_configuration = {
         "Email Address": st.column_config.TextColumn("Email Address"),
         "📧": st.column_config.LinkColumn(" ", display_text="Email Lead"),
@@ -157,10 +189,6 @@ try:
                     st.rerun()
 
     with st.sidebar:
-        st.markdown(f"**Last Sync:** {last_sync} CST")
-        if st.button("🔄 Refresh Data"):
-            st.cache_data.clear()
-            st.rerun()
         st.markdown("---")
         st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
         st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
