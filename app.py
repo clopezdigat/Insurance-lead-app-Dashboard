@@ -10,7 +10,7 @@ st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
 st.markdown(f"""
     <style>
-    /* RESTORED TOP BAR TO GOLD */
+    /* TOP BAR GOLD */
     .stApp {{ border-top: 8px solid #D4AF37; }}
     
     .hero-box {{
@@ -45,20 +45,24 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* STICKY SEARCH SECTION WITH ADDED PADDING TO PREVENT CLIPPING */
-    div[data-testid="stVerticalBlock"] > div:has(div.sticky-search-area) {{
+    /* EXPANDED STICKY SECTION: Includes Search + Tabs */
+    div[data-testid="stVerticalBlock"] > div:has(div.sticky-nav-container) {{
         position: sticky;
         top: 0; 
         z-index: 9999;
         background-color: white !important;
-        /* Increased top padding to ensure labels aren't cut off */
-        padding: 20px 0px 10px 0px !important; 
+        padding: 20px 0px 0px 0px !important; 
     }}
     
-    .sticky-search-area {{
+    .sticky-nav-container {{
         background-color: white;
-        padding: 5px 0px;
         margin: 0px;
+    }}
+
+    /* Ensure tabs within the sticky container look clean */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 10px;
+        background-color: white;
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -200,9 +204,10 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- STICKY SEARCH INTERFACE ---
+    # --- EXPANDED STICKY CONTAINER ---
     with st.container():
-        st.markdown('<div class="sticky-search-area">', unsafe_allow_html=True)
+        st.markdown('<div class="sticky-nav-container">', unsafe_allow_html=True)
+        # 1. Search Logic
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
             search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
@@ -215,9 +220,12 @@ try:
                 st.session_state.search_query = ""
                 st.session_state.status_filter = "All"
                 st.rerun()
+        
+        # 2. Tabs moved inside the sticky container
+        t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
         st.markdown('</div>', unsafe_allow_html=True)
 
-    t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
+    # --- MAIN CONTENT (Linked to Tabs) ---
     with t1:
         render_market_insights(filtered_prod, timeframe)
         st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
@@ -225,7 +233,7 @@ try:
         render_market_insights(filtered_rec, timeframe)
         st.dataframe(process_table(raw_rec_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
 
-    # --- UPDATE FORM ---
+    # --- UPDATE FORM (Bottom Section) ---
     st.markdown("---")
     st.subheader("📝 Update Lead")
     u1, u2 = st.columns([1, 2])
