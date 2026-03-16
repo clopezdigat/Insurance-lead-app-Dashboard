@@ -11,52 +11,15 @@ st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 # Custom CSS for Burgundy/Gold theme
 st.markdown(f"""
     <style>
-    /* 1. FORCE GLOBAL THEME */
+    /* Global Theme Base */
     :root {{
         --primary-color: #3b0710 !important;
     }}
 
-    /* 2. THE "ULTIMATE" TAB OVERRIDE */
-    /* Target the Segmented Control and all its children */
-    div[data-testid="stSegmentedControl"] [data-baseweb="segmented-control"] {{
-        background-color: transparent !important;
-        border: 1px solid #D4AF37 !important;
-        border-radius: 8px !important;
+    .stApp {{ 
+        border-top: 8px solid #D4AF37;
     }}
 
-    /* Target the ACTIVE tab's background and border */
-    div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
-        background-color: #3b0710 !important;
-        color: #D4AF37 !important;
-        box-shadow: none !important;
-    }}
-
-    /* Target the ACTIVE tab's text (forcing gold) */
-    div[data-testid="stSegmentedControl"] button[aria-checked="true"] div {{
-        color: #D4AF37 !important;
-    }}
-
-    /* Target the INACTIVE tab's text (forcing burgundy) */
-    div[data-testid="stSegmentedControl"] button[aria-checked="false"] div {{
-        color: #3b0710 !important;
-    }}
-
-    /* KILL THE RED FOCUS RING (The bright red border that appears when clicked) */
-    div[data-testid="stSegmentedControl"] button:focus,
-    div[data-testid="stSegmentedControl"] button:active,
-    div[data-testid="stSegmentedControl"] button:hover {{
-        outline: none !important;
-        box-shadow: none !important;
-        background-color: #f5f5f5 !important; /* Light neutral hover */
-    }}
-
-    /* Special rule for the selected hover state */
-    div[data-testid="stSegmentedControl"] button[aria-checked="true"]:hover {{
-        background-color: #3b0710 !important;
-        opacity: 0.9;
-    }}
-
-    /* 3. REST OF YOUR BRANDING */
     .hero-box {{
         background-color: #3b0710;
         padding: 2rem;
@@ -244,7 +207,6 @@ try:
 
     with st.sidebar:
         st.title("🛡️ Admin Panel")
-        # Restored and expanded list
         timeframe = st.selectbox("Performance Period:", ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "6 month", "1 year", "All Time"], index=3)
         if st.button("Refresh Data"):
             st.cache_data.clear()
@@ -263,7 +225,6 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruitment", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- STICKY NAVIGATION BAR ---
     with st.container():
         st.markdown('<div class="nav-sticky-header"></div>', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
@@ -289,7 +250,6 @@ try:
         render_market_insights(filtered_rec, timeframe)
         st.dataframe(process_table(raw_rec_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
 
-    # --- UPDATE FORM ---
     st.markdown("---")
     st.subheader("📝 Update Lead Status")
     u1, u2 = st.columns([1, 2])
