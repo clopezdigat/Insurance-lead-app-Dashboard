@@ -44,16 +44,21 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* TARGETED STICKY SECTION - REMOVES EXTRA TOP BARS */
-    div[data-testid="stVerticalBlock"] > div:has(> div.sticky-anchor) {{
+    /* STICKY PERIMETER SECTION */
+    /* Target the specific container for the search section */
+    div[data-testid="stVerticalBlock"] > div:has(div.sticky-perimeter) {{
         position: sticky;
-        top: -1px; 
-        z-index: 1000;
-        background-color: white;
+        top: 0; 
+        z-index: 999;
+        background-color: white; /* Prevents text cutoff/bleeding */
+        padding: 10px 0px;
+    }}
+    
+    .sticky-perimeter {{
         border-top: 2px solid #D4AF37;
         border-bottom: 2px solid #D4AF37;
-        padding: 15px 0px;
-        margin: 10px 0px 20px 0px;
+        padding: 20px 0px;
+        margin: 0px;
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -195,9 +200,9 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- STICKY SECTION ---
+    # --- WRAPPED STICKY SECTION ---
     with st.container():
-        st.markdown('<div class="sticky-anchor"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="sticky-perimeter">', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
             search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
@@ -210,6 +215,7 @@ try:
                 st.session_state.search_query = ""
                 st.session_state.status_filter = "All"
                 st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
     t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
     with t1:
