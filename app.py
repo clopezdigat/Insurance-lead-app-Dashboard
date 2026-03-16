@@ -8,7 +8,7 @@ import plotly.express as px
 # --- BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
-# Custom CSS for Burgundy/Gold theme and Sticky Nav
+# Custom CSS for Burgundy/Gold theme and Sticky Nav Fix
 st.markdown(f"""
     <style>
     /* TOP BAR GOLD */
@@ -32,29 +32,34 @@ st.markdown(f"""
         opacity: 0.9;
     }}
 
+    /* TARGETED STICKY CSS: Only sticks the navigation wrapper */
+    div[data-testid="stVerticalBlock"] > div:has(div.nav-sticky-header) {{
+        position: sticky;
+        top: 0; 
+        z-index: 999;
+        background-color: white !important;
+        padding: 15px 0px 10px 0px !important;
+        border-bottom: 2px solid #f0f2f6;
+    }}
+
+    /* Align the Reset button with the input fields */
+    .reset-button-container {{
+        padding-top: 28px;
+    }}
+
     div.stButton > button {{
         background-color: #3b0710;
         color: #D4AF37;
         border: 2px solid #D4AF37;
         border-radius: 5px;
         transition: all 0.3s ease;
+        height: 3.0rem;
+        width: 100%;
     }}
 
     div.stButton > button:hover {{
         background-color: #D4AF37 !important;
         color: #3b0710 !important;
-        border: 2px solid #3b0710;
-    }}
-
-    /* TARGETED STICKY CSS: Only sticks the wrapper container */
-    div[data-testid="stVerticalBlock"] > div:has(div.nav-sticky-wrapper) {{
-        position: sticky;
-        top: 0; 
-        z-index: 999;
-        background-color: white !important;
-        padding-top: 15px !important;
-        padding-bottom: 10px !important;
-        border-bottom: 2px solid #f0f2f6;
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -182,13 +187,11 @@ try:
             st.cache_data.clear()
             st.rerun()
         st.caption(f"Last Sync: {last_sync} CST")
-        st.markdown("---")
-        st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
 
     # Header section
     st.markdown(f'<div class="hero-box"><h1>📋 Executive Oversight</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
 
-    # Lead Deltas
+    # Metrics
     p_count, p_delta, filtered_prod = get_filtered_data(raw_prod_df, timeframe)
     r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
     
@@ -196,10 +199,11 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- STICKY NAV SECTION ---
-    # Everything inside this container stays at the top when scrolling
+    # --- STICKY NAVIGATION BAR ---
     with st.container():
-        st.markdown('<div class="nav-sticky-wrapper">', unsafe_allow_html=True)
+        st.markdown('<div class="nav-sticky-header"></div>', unsafe_allow_html=True)
+        
+        # Row 1: Aligned Inputs and Reset
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
             search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
@@ -207,30 +211,35 @@ try:
             status_list = ["All", "New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
             status_filter = st.selectbox("Status Filter:", status_list, index=status_list.index(st.session_state.status_filter), key="st_select")
         with s3:
-            st.write(" ") 
+            st.markdown('<div class="reset-button-container">', unsafe_allow_html=True)
             if st.button("Reset"):
                 st.session_state.search_query = ""
                 st.session_state.status_filter = "All"
                 st.rerun()
-        
-        tab_product, tab_recruit = st.tabs(["🛍️ Products", "🤝 Recruits"])
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # Row 2: Category Selection (The "Tabs")
+        # We use a segmented control or radio outside of st.tabs to prevent the whole table from sticking
+        view_mode = st.segmented_control(
+            "Select Lead Category:", 
+            options=["🛍️ Products", "🤝 Recruits"], 
+            default="🛍️ Products"
+        )
 
     # --- SCROLLABLE DATA SECTION ---
-    with tab_product:
+    if view_mode == "🛍️ Products":
         render_market_insights(filtered_prod, timeframe)
         st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
-    
-    with tab_recruit:
+    else:
         render_market_insights(filtered_rec, timeframe)
         st.dataframe(process_table(raw_rec_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
 
     # --- UPDATE FORM ---
     st.markdown("---")
-    st.subheader("📝 Update Lead")
+    st.subheader("📝 Update Lead Status")
     u1, u2 = st.columns([1, 2])
     with u1:
-        target_ws = st.radio("Sheet to Update:", ["Product", "Recruitment"], horizontal=True)
+        target_ws = st.radio("Target Sheet:", ["Product", "Recruitment"], horizontal=True)
         active_df = raw_prod_df if target_ws == "Product" else raw_rec_df
         if not active_df.empty:
             lead_options = active_df.apply(lambda x: f"{x['Full Name']} ({x['Email Address']})", axis=1).tolist()
@@ -245,19 +254,20 @@ try:
             with cs1:
                 st_opts = ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
                 curr_st = row.get('Status', 'New')
-                new_st = st.selectbox("Update Status:", st_opts, index=st_opts.index(curr_st) if curr_st in st_opts else 0)
+                new_st = st.selectbox("New Status:", st_opts, index=st_opts.index(curr_st) if curr_st in st_opts else 0)
             with cs2:
-                new_note = st.text_area("Edit Notes:", value=str(row.get('Notes', '')), height=68)
-            if st.button("Save Changes to Google Sheet", use_container_width=True):
+                new_note = st.text_area("Update Notes:", value=str(row.get('Notes', '')), height=68)
+            
+            if st.button("Confirm Changes", use_container_width=True):
                 gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
                 ws = gc.open("Lead Manager").worksheet(target_ws)
                 cell = ws.find(selected_email)
                 headers = [h.strip() for h in ws.row_values(1)]
                 ws.update_cell(cell.row, headers.index("Status") + 1, new_st)
                 ws.update_cell(cell.row, headers.index("Notes") + 1, new_note)
-                st.success(f"Changes saved!")
+                st.success("Successfully updated.")
                 st.cache_data.clear()
                 st.rerun()
 
 except Exception as e:
-    st.error(f"Error in application: {e}")
+    st.error(f"Error: {e}")
