@@ -44,22 +44,19 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* FIXED STICKY ENCLOSURE */
-    /* This targets the exact parent of our anchor class to ensure stickiness */
-    div[data-testid="stVerticalBlock"] > div:has(div.sticky-wrapper) {{
+    /* STICKY SEARCH SECTION - NO BORDERS */
+    div[data-testid="stVerticalBlock"] > div:has(div.sticky-search-area) {{
         position: sticky;
         top: 0; 
         z-index: 9999;
         background-color: white !important;
-        padding: 0px !important;
+        padding: 10px 0px !important;
     }}
     
-    .sticky-wrapper {{
-        border-top: 2px solid #D4AF37;
-        border-bottom: 2px solid #D4AF37;
-        padding: 25px 10px;
-        margin: 15px 0px;
+    .sticky-search-area {{
         background-color: white;
+        padding: 10px 0px;
+        margin: 0px;
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -201,9 +198,9 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- ENCLOSED STICKY SECTION ---
+    # --- STICKY SEARCH INTERFACE (NO BARS) ---
     with st.container():
-        st.markdown('<div class="sticky-wrapper">', unsafe_allow_html=True)
+        st.markdown('<div class="sticky-search-area">', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
             search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
