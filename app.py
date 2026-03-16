@@ -42,13 +42,11 @@ st.markdown(f"""
         border-bottom: 2px solid #f0f2f6;
     }}
 
-    /* --- FIXING THE SEGMENTED CONTROL COLORS --- */
-    /* Target the container to remove the red outline */
+    /* FIXED SEGMENTED CONTROL COLORS */
     div[data-testid="stSegmentedControl"] {{
         border: none !important;
     }}
 
-    /* Selected State: Burgundy Background, Gold Text, Gold Border */
     div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
         background-color: #3b0710 !important;
         color: #D4AF37 !important;
@@ -56,17 +54,10 @@ st.markdown(f"""
         box-shadow: none !important;
     }}
 
-    /* Unselected Hover State: Slight Gold Text */
     div[data-testid="stSegmentedControl"] button:hover {{
         color: #D4AF37 !important;
     }}
 
-    /* Neutral State for unselected text */
-    div[data-testid="stSegmentedControl"] button {{
-        color: #31333F;
-    }}
-
-    /* Align the Reset button */
     .reset-button-container {{
         padding-top: 28px;
     }}
@@ -143,7 +134,14 @@ def render_market_insights(df, timeframe_label):
                 rule = 'H' if timeframe_label in ["1 hr", "12 hr", "24 hr"] else 'D'
                 trend = df.set_index('Timestamp').resample(rule).size().reset_index(name='Leads')
                 fig = px.line(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
-                fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                # CLEANER CHART CONFIG
+                fig.update_traces(line_shape='spline', line_width=3)
+                fig.update_layout(
+                    height=200, margin=dict(l=0,r=0,t=10,b=0), 
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(showgrid=False, title=None),
+                    yaxis=dict(showgrid=False, title=None)
+                )
                 st.plotly_chart(fig, use_container_width=True)
         with v2:
             st.write("**Market Share**")
@@ -159,7 +157,8 @@ def render_market_insights(df, timeframe_label):
                 int_data = df['Interest Selected'].value_counts().head(3).reset_index()
                 if not int_data.empty:
                     fig = px.bar(int_data, x='count', y='Interest Selected', orientation='h', color_discrete_sequence=['#D4AF37'])
-                    fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), xaxis_title=None, yaxis_title=None)
+                    fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), xaxis_title=None, yaxis_title=None,
+                                      xaxis=dict(showgrid=False), yaxis=dict(showgrid=False))
                     st.plotly_chart(fig, use_container_width=True)
 
 def process_table(df, s_query, s_filter):
@@ -211,7 +210,6 @@ try:
             st.rerun()
         st.caption(f"Last Sync: {last_sync} CST")
         st.markdown("---")
-        # Links exactly as originally formatted
         st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
         st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
 
@@ -222,15 +220,14 @@ try:
     
     m1, m2 = st.columns(2)
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
-    m2.metric(f"Recruitment Leads", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
+    m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
     # --- STICKY NAVIGATION BAR ---
     with st.container():
         st.markdown('<div class="nav-sticky-header"></div>', unsafe_allow_html=True)
-        
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
-            search_query = st.text_input("Search Data:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
+            search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
         with s2:
             status_list = ["All", "New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
             status_filter = st.selectbox("Status Filter:", status_list, index=status_list.index(st.session_state.status_filter), key="st_select")
@@ -242,14 +239,10 @@ try:
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
-        view_mode = st.segmented_control(
-            "Lead Category:", 
-            options=["🛍️ Product", "🤝 Recruitment"], 
-            default="🛍️ Product"
-        )
+        view_mode = st.segmented_control("Lead Category:", options=["🛍️ Products", "🤝 Recruits"], default="🛍️ Products")
 
     # --- SCROLLABLE DATA SECTION ---
-    if view_mode == "🛍️ Product":
+    if view_mode == "🛍️ Products":
         render_market_insights(filtered_prod, timeframe)
         st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
     else:
@@ -265,8 +258,13 @@ try:
         active_df = raw_prod_df if target_ws == "Product" else raw_rec_df
         if not active_df.empty:
             lead_options = active_df.apply(lambda x: f"{x['Full Name']} ({x['Email Address']})", axis=1).tolist()
-            selected_lead_display = st.selectbox("Find Lead:", lead_options, placeholder="Type Name or Email")
-            selected_email = selected_lead_display.split('(')[-1].strip(')')
+            # ADDING THE PLACEHOLDER LOGIC
+            lead_options.insert(0, "Select a lead...") 
+            selected_lead_display = st.selectbox("Find Lead:", lead_options)
+            
+            if selected_lead_display != "Select a lead...":
+                selected_email = selected_lead_display.split('(')[-1].strip(')')
+            else: selected_email = None
         else: selected_email = None
 
     with u2:
@@ -290,6 +288,8 @@ try:
                 st.success("Successfully updated.")
                 st.cache_data.clear()
                 st.rerun()
+        else:
+            st.info("Please select a lead from the menu on the left to edit.")
 
 except Exception as e:
     st.error(f"Error: {e}")
