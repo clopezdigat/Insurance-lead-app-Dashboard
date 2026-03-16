@@ -40,30 +40,46 @@ st.markdown(f"""
         border-bottom: 2px solid #f0f2f6;
     }}
 
-    /* --- SPECIFIC FIX FOR SEGMENTED CONTROL --- */
-    /* Target the container to kill the default red border */
-    div[data-testid="stSegmentedControl"] [data-baseweb="segmented-control"] {{
+    /* --- NUCLEAR CSS OVERRIDE FOR SEGMENTED CONTROL --- */
+    
+    /* 1. Target the main container border and background */
+    div[data-testid="stSegmentedControl"] > div {{
         border: 1px solid #D4AF37 !important;
+        background-color: transparent !important;
+        padding: 2px !important;
         border-radius: 8px !important;
     }}
 
-    /* Target the individual buttons */
+    /* 2. Target ALL buttons inside the control to force Burgundy text */
     div[data-testid="stSegmentedControl"] button {{
         color: #3b0710 !important;
         border: none !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
     }}
 
-    /* Target the selected state (the one that stays red) */
+    /* 3. Target the SELECTED button (forcing Burgundy background + Gold text) */
     div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
         background-color: #3b0710 !important;
         color: #D4AF37 !important;
+        box-shadow: none !important;
     }}
 
-    /* Remove the red focus ring when clicking */
-    div[data-testid="stSegmentedControl"] button:focus {{
+    /* 4. Kill the "Red Glow" hover/focus states completely */
+    div[data-testid="stSegmentedControl"] button:hover, 
+    div[data-testid="stSegmentedControl"] button:focus,
+    div[data-testid="stSegmentedControl"] button:active {{
+        background-color: #D4AF37 !important; /* Gold hover */
+        color: #3b0710 !important; /* Burgundy text on hover */
         outline: none !important;
         box-shadow: none !important;
     }}
+
+    /* 5. Force the active tab indicator (the sliding red bar) to be Burgundy */
+    div[data-testid="stSegmentedControl"] div[role="tablist"] > div {{
+        background-color: #3b0710 !important;
+    }}
+
     /* --- END FIX --- */
 
     .reset-button-container {{
