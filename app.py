@@ -15,10 +15,10 @@ st.markdown(f"""
     
     .hero-box {{
         background-color: #3b0710;
-        padding: 1.5rem 2rem; /* Reduced vertical padding */
+        padding: 1.2rem 2rem; 
         border-radius: 10px;
         border-left: 10px solid #D4AF37;
-        margin-bottom: 0.5rem; /* Heavily reduced margin to close the gap */
+        margin-bottom: 0.2rem; /* Reduced to pull metrics closer */
     }}
     .hero-box h1 {{
         color: #D4AF37 !important;
@@ -27,13 +27,13 @@ st.markdown(f"""
     }}
     .hero-box p {{
         color: white;
-        margin: 5px 0 0 0;
+        margin: 2px 0 0 0;
         opacity: 0.9;
     }}
 
-    /* Tighten metric spacing */
+    /* Tighten metric spacing even further */
     [data-testid="stMetric"] {{
-        margin-bottom: -1rem;
+        margin-bottom: -1.5rem;
     }}
 
     div.stButton > button {{
@@ -44,24 +44,20 @@ st.markdown(f"""
         transition: all 0.3s ease;
     }}
 
-    div.stButton > button:hover {{
-        background-color: #D4AF37 !important;
-        color: #3b0710 !important;
-        border: 2px solid #3b0710;
-    }}
-
-    /* STICKY NAV SECTION - Tightened vertical spacing */
+    /* STICKY NAV SECTION - Fixed label clipping */
     div[data-testid="stVerticalBlock"] > div:has(div.sticky-nav-container) {{
         position: sticky;
-        top: 0; 
+        top: 0px; 
         z-index: 9999;
         background-color: white !important;
-        padding: 10px 0px 0px 0px !important; /* Reduced top padding */
+        padding-top: 0px !important;
     }}
     
     .sticky-nav-container {{
         background-color: white;
-        margin: 0px;
+        padding-top: 15px; /* Internal padding ensures labels are visible at the top */
+        padding-bottom: 5px;
+        margin-top: -10px; /* Pulls closer to metrics */
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -114,8 +110,7 @@ def render_market_insights(df, timeframe_label):
                 rule = 'H' if timeframe_label in ["1 hr", "12 hr", "24 hr"] else 'D'
                 trend = df.set_index('Timestamp').resample(rule).size().reset_index(name='Leads')
                 fig = px.line(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
-                fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-                fig.update_xaxes(tickformat="%H:%M" if rule == 'H' else "%b %d")
+                fig.update_layout(height=180, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig, use_container_width=True)
         with v2:
             st.write("**Market Share**")
@@ -123,8 +118,7 @@ def render_market_insights(df, timeframe_label):
             if loc_col and not df.empty:
                 loc_data = df[loc_col].replace('', 'N/A').fillna('N/A').value_counts().reset_index()
                 fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c'])
-                fig.update_traces(textposition='inside', textinfo='percent+label')
-                fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), showlegend=False)
+                fig.update_layout(height=180, margin=dict(l=0,r=0,t=10,b=0), showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
         with v3:
             st.write("**Top Interests**")
@@ -132,10 +126,8 @@ def render_market_insights(df, timeframe_label):
                 int_data = df['Interest Selected'].value_counts().head(3).reset_index()
                 if not int_data.empty:
                     fig = px.bar(int_data, x='count', y='Interest Selected', orientation='h', color_discrete_sequence=['#D4AF37'])
-                    fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), xaxis_title=None, yaxis_title=None)
+                    fig.update_layout(height=180, margin=dict(l=0,r=0,t=10,b=0), xaxis_title=None, yaxis_title=None)
                     st.plotly_chart(fig, use_container_width=True)
-                else: st.caption("No data.")
-            else: st.caption("Column missing.")
 
 def process_table(df, s_query, s_filter):
     if df.empty: return df
@@ -158,14 +150,9 @@ def process_table(df, s_query, s_filter):
     
     cols = list(f.columns)
     base = [c for c in cols if c not in ['📧', '📞', 'Days Idle']]
-    
-    if 'Timestamp' in base:
-        base.insert(base.index('Timestamp'), 'Days Idle')
-    if 'Email Address' in base:
-        base.insert(base.index('Email Address') + 1, '📧')
-    if 'Phone Number' in base:
-        base.insert(base.index('Phone Number') + 1, '📞')
-        
+    if 'Timestamp' in base: base.insert(base.index('Timestamp'), 'Days Idle')
+    if 'Email Address' in base: base.insert(base.index('Email Address') + 1, '📧')
+    if 'Phone Number' in base: base.insert(base.index('Phone Number') + 1, '📞')
     return f[base]
 
 table_config = {
@@ -173,7 +160,7 @@ table_config = {
     "📧": st.column_config.LinkColumn(" ", display_text="Email"),
     "Phone Number": st.column_config.TextColumn("Phone Number"),
     "📞": st.column_config.LinkColumn(" ", display_text="Call"),
-    "Days Idle": st.column_config.NumberColumn("Days Idle", help="Days since lead was created", format="%d days"),
+    "Days Idle": st.column_config.NumberColumn("Days Idle", format="%d days"),
 }
 
 # --- DASHBOARD EXECUTION ---
@@ -194,13 +181,11 @@ try:
         st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
         st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
 
-    # Hero Box with reduced margin
     st.markdown(f'<div class="hero-box"><h1>📋 Executive Oversight</h1><p>Internal Lead Management System | Last Sync: {last_sync}</p></div>', unsafe_allow_html=True)
 
     p_count, p_delta, filtered_prod = get_filtered_data(raw_prod_df, timeframe)
     r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
     
-    # Delta Metrics sitting tighter to the content
     m1, m2 = st.columns(2)
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
@@ -240,7 +225,7 @@ try:
         active_df = raw_prod_df if target_ws == "Product" else raw_rec_df
         if not active_df.empty:
             lead_options = active_df.apply(lambda x: f"{x['Full Name']} ({x['Email Address']})", axis=1).tolist()
-            selected_lead_display = st.selectbox("Find Lead (Type Name or Email):", lead_options)
+            selected_lead_display = st.selectbox("Find Lead:", lead_options)
             selected_email = selected_lead_display.split('(')[-1].strip(')')
         else: selected_email = None
 
