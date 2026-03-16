@@ -8,10 +8,9 @@ import plotly.express as px
 # --- BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
-# Custom CSS for Burgundy/Gold theme and UI behavior
+# Custom CSS for Burgundy/Gold theme
 st.markdown(f"""
     <style>
-    /* TOP BAR GOLD */
     .stApp {{ border-top: 8px solid #D4AF37; }}
     
     .hero-box {{
@@ -32,7 +31,6 @@ st.markdown(f"""
         opacity: 0.9;
     }}
 
-    /* STICKY HEADER */
     div[data-testid="stVerticalBlock"] > div:has(div.nav-sticky-header) {{
         position: sticky;
         top: 0; 
@@ -42,7 +40,6 @@ st.markdown(f"""
         border-bottom: 2px solid #f0f2f6;
     }}
 
-    /* SEGMENTED CONTROL COLORS */
     div[data-testid="stSegmentedControl"] {{
         border: none !important;
     }}
@@ -110,12 +107,12 @@ def get_filtered_data(df, timeframe_label):
     
     now = datetime.now()
     mapping = {
-        "1h": timedelta(hours=1), "12h": timedelta(hours=12), "24h": timedelta(days=1),
-        "1w": timedelta(weeks=1), "1m": timedelta(days=30), "All": None
+        "1 hr": timedelta(hours=1), "12 hr": timedelta(hours=12), "24 hr": timedelta(days=1),
+        "1 week": timedelta(weeks=1), "1 month": timedelta(days=30), "All Time": None
     }
     
     duration = mapping.get(timeframe_label)
-    if timeframe_label == "All":
+    if timeframe_label == "All Time":
         return len(temp_df), 0, temp_df
     
     current_df = temp_df[temp_df['Timestamp'] > (now - duration)]
@@ -131,14 +128,20 @@ def render_market_insights(df, timeframe_label):
         with v1:
             st.write("**Activity Trend**")
             if not df.empty:
-                rule = 'H' if timeframe_label in ["1h", "12h", "24h"] else 'D'
+                is_hourly = timeframe_label in ["1 hr", "12 hr", "24 hr"]
+                rule = 'H' if is_hourly else 'D'
                 trend = df.set_index('Timestamp').resample(rule).size().reset_index(name='Leads')
+                
                 fig = px.line(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
                 fig.update_traces(line_shape='spline', line_width=3)
+                
+                # Dynamic X-axis formatting
+                x_format = "%H:00" if is_hourly else "%b %d"
+                
                 fig.update_layout(
                     height=200, margin=dict(l=0,r=0,t=10,b=0), 
                     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                    xaxis=dict(showgrid=False, title=None),
+                    xaxis=dict(showgrid=False, title=None, tickformat=x_format),
                     yaxis=dict(showgrid=False, title=None)
                 )
                 st.plotly_chart(fig, use_container_width=True)
@@ -146,11 +149,9 @@ def render_market_insights(df, timeframe_label):
             st.write("**Location Trend**")
             loc_col = next((c for c in ['State', 'City'] if c in df.columns), None)
             if loc_col and not df.empty:
-                # Fill blanks with N/A for clear labeling
                 loc_data = df[loc_col].replace('', 'N/A').fillna('N/A').value_counts().reset_index()
                 fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, 
                              color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c'])
-                # Move labels to the chart slices
                 fig.update_traces(textposition='inside', textinfo='label+percent')
                 fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
@@ -207,7 +208,7 @@ try:
 
     with st.sidebar:
         st.title("🛡️ Admin Panel")
-        timeframe = st.selectbox("Performance Period:", ["1h", "12h", "24h", "1w", "1m", "All"], index=3)
+        timeframe = st.selectbox("Performance Period:", ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "All Time"], index=3)
         if st.button("Refresh Data"):
             st.cache_data.clear()
             st.rerun()
@@ -222,8 +223,8 @@ try:
     r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
     
     m1, m2 = st.columns(2)
-    m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All" else None)
-    m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All" else None)
+    m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
+    m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
     # --- STICKY NAVIGATION BAR ---
     with st.container():
@@ -244,7 +245,6 @@ try:
 
         view_mode = st.segmented_control("Lead Category:", options=["🛍️ Products", "🤝 Recruits"], default="🛍️ Products")
 
-    # --- SCROLLABLE DATA SECTION ---
     if view_mode == "🛍️ Products":
         render_market_insights(filtered_prod, timeframe)
         st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
