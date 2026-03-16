@@ -80,15 +80,24 @@ def render_market_insights(df, timeframe_label):
             if not df.empty:
                 is_hourly = timeframe_label in ["1 hr", "12 hr", "24 hr"]
                 rule = 'H' if is_hourly else 'D'
+                
+                # Resample and fill zeros so the chart isn't empty on quiet days
                 trend = df.set_index('Timestamp').resample(rule).size().reset_index(name='Leads')
-                fig = px.line(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
-                fig.update_traces(line_shape='spline', line_width=3)
+                
+                # Switch to Bar Chart: much better for low-volume lead tracking
+                fig = px.bar(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
+                
                 x_format = "%H:00" if is_hourly else "%b %d"
-                fig.update_layout(height=200, margin=dict(l=0,r=0,t=10,b=0), 
-                                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                                xaxis=dict(showgrid=False, title=None, tickformat=x_format),
-                                yaxis=dict(showgrid=False, title=None))
+                
+                fig.update_layout(
+                    height=200, margin=dict(l=0,r=0,t=10,b=0), 
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(showgrid=False, title=None, tickformat=x_format, dtick="auto"),
+                    yaxis=dict(showgrid=False, title=None, tickmode='linear', tick0=0, dtick=1) # Forces whole numbers
+                )
                 st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.caption("No leads in this period")
         with v2:
             st.write("**Location Trend**")
             loc_col = next((c for c in ['State', 'City'] if c in df.columns), None)
