@@ -71,13 +71,7 @@ try:
         if selected_status != "All":
             filtered = filtered[filtered['Status'] == selected_status]
         
-        # Background Link Logic
-        if 'Email Address' in filtered.columns:
-            filtered['Email Address'] = filtered['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
-        if 'Phone Number' in filtered.columns:
-            filtered['Phone Number'] = filtered['Phone Number'].apply(
-                lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else ""
-            )
+        # Background Link Logic REMOVED here to keep raw text visible
         return filtered
 
     display_prod = process_display_df(raw_prod_df)
@@ -91,11 +85,26 @@ try:
     m_col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
     # Table Configuration
-    # display_text=None ensures raw data shows while links work in background
+    # We use a display template to add mailto: and tel: in the background without showing them
     column_configuration = {
-        "Email Address": st.column_config.LinkColumn("Email Address", display_text=None),
-        "Phone Number": st.column_config.LinkColumn("Phone Number", display_text=None),
+        "Email Address": st.column_config.LinkColumn(
+            "Email Address", 
+            validate="^mailto:.*", 
+            display_text=None
+        ),
+        "Phone Number": st.column_config.LinkColumn(
+            "Phone Number", 
+            validate="^tel:.*", 
+            display_text=None
+        ),
     }
+
+    # Format the data for the links just for the display dataframe
+    display_prod['Email Address'] = display_prod['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
+    display_prod['Phone Number'] = display_prod['Phone Number'].apply(lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else "")
+    
+    display_rec['Email Address'] = display_rec['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
+    display_rec['Phone Number'] = display_rec['Phone Number'].apply(lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else "")
 
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
     with tab1:
