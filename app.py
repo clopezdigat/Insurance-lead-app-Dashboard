@@ -68,12 +68,11 @@ try:
         filtered = df.copy()
         if search_query and 'Full Name' in filtered.columns:
             filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
-        if selected_status != "All":
+        if selected_status != "All" and 'Status' in filtered.columns:
             filtered = filtered[filtered['Status'] == selected_status]
-        
-        # Background Link Logic REMOVED here to keep raw text visible
         return filtered
 
+    # Create cleaned display versions
     display_prod = process_display_df(raw_prod_df)
     display_rec = process_display_df(raw_rec_df)
 
@@ -85,26 +84,29 @@ try:
     m_col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
     # Table Configuration
-    # We use a display template to add mailto: and tel: in the background without showing them
     column_configuration = {
         "Email Address": st.column_config.LinkColumn(
             "Email Address", 
-            validate="^mailto:.*", 
             display_text=None
         ),
         "Phone Number": st.column_config.LinkColumn(
             "Phone Number", 
-            validate="^tel:.*", 
             display_text=None
         ),
     }
 
-    # Format the data for the links just for the display dataframe
-    display_prod['Email Address'] = display_prod['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
-    display_prod['Phone Number'] = display_prod['Phone Number'].apply(lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else "")
+    # Add protocols for the clickable links (Visible data remains raw)
+    if not display_prod.empty:
+        if 'Email Address' in display_prod.columns:
+            display_prod['Email Address'] = display_prod['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
+        if 'Phone Number' in display_prod.columns:
+            display_prod['Phone Number'] = display_prod['Phone Number'].apply(lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else "")
     
-    display_rec['Email Address'] = display_rec['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
-    display_rec['Phone Number'] = display_rec['Phone Number'].apply(lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else "")
+    if not display_rec.empty:
+        if 'Email Address' in display_rec.columns:
+            display_rec['Email Address'] = display_rec['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
+        if 'Phone Number' in display_rec.columns:
+            display_rec['Phone Number'] = display_rec['Phone Number'].apply(lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else "")
 
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
     with tab1:
@@ -115,37 +117,47 @@ try:
     # CRM Update Section
     st.markdown("---")
     st.subheader("📝 Update Lead Progress")
+    
     c1, c2 = st.columns([1, 2])
     with c1:
         target = st.radio("Target Sheet:", ["Product", "Recruitment"], horizontal=True)
         df_to_use = raw_prod_df if target == "Product" else raw_rec_df
-        lead_email = st.selectbox("Select Lead to Edit:", df_to_use['Email Address'].tolist())
+        
+        # Defensive check for empty lists
+        email_list = df_to_use['Email Address'].tolist() if 'Email Address' in df_to_use.columns else []
+        
+        if email_list:
+            lead_email = st.selectbox("Select Lead to Edit:", email_list)
+        else:
+            st.warning("No leads found in this category.")
+            lead_email = None
     
     with c2:
-        lead_data = df_to_use[df_to_use['Email Address'] == lead_email].iloc[0]
-        col_s, col_n = st.columns(2)
-        with col_s:
-            status_options = ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
-            current_status = lead_data.get('Status', 'New')
-            idx = status_options.index(current_status) if current_status in status_options else 0
-            new_status = st.selectbox("New Status:", status_options, index=idx)
-        with col_n:
-            new_note = st.text_area("New Notes:", value=str(lead_data.get('Notes', '')))
+        if lead_email:
+            lead_data = df_to_use[df_to_use['Email Address'] == lead_email].iloc[0]
+            col_s, col_n = st.columns(2)
+            with col_s:
+                status_options = ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
+                current_status = lead_data.get('Status', 'New')
+                idx = status_options.index(current_status) if current_status in status_options else 0
+                new_status = st.selectbox("New Status:", status_options, index=idx)
+            with col_n:
+                new_note = st.text_area("New Notes:", value=str(lead_data.get('Notes', '')))
 
-    if st.button("Save Changes to Google Sheet"):
-        try:
-            gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
-            sh = gc.open("Lead Manager")
-            ws = sh.worksheet(target)
-            cell = ws.find(lead_email)
-            header = ws.row_values(1)
-            ws.update_cell(cell.row, header.index("Status") + 1, new_status)
-            ws.update_cell(cell.row, header.index("Notes") + 1, new_note)
-            st.success("Updated successfully!")
-            st.cache_data.clear()
-            st.rerun()
-        except Exception as e:
-            st.error(f"Update failed: {e}")
+            if st.button("Save Changes to Google Sheet"):
+                try:
+                    gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+                    sh = gc.open("Lead Manager")
+                    ws = sh.worksheet(target)
+                    cell = ws.find(lead_email)
+                    header = ws.row_values(1)
+                    ws.update_cell(cell.row, header.index("Status") + 1, new_status)
+                    ws.update_cell(cell.row, header.index("Notes") + 1, new_note)
+                    st.success("Updated successfully!")
+                    st.cache_data.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Update failed: {e}")
 
     # Sidebar Navigation & Timestamp
     with st.sidebar:
