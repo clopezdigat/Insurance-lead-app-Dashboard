@@ -131,20 +131,37 @@ def render_market_insights(df, timeframe_label):
 def process_table(df, s_query, s_filter):
     if df.empty: return df
     f = df.copy()
+    
+    # Calculate Days Idle
+    if 'Timestamp' in f.columns:
+        f['Timestamp'] = pd.to_datetime(f['Timestamp'], errors='coerce')
+        now = datetime.now()
+        f['Days Idle'] = (now - f['Timestamp']).dt.days
+        f['Days Idle'] = f['Days Idle'].apply(lambda x: max(x, 0) if pd.notnull(x) else 0)
+
+    # Apply Filters
     if s_query: 
         f = f[f['Full Name'].str.contains(s_query, case=False, na=False)]
     if s_filter != "All": 
         f = f[f['Status'] == s_filter]
+    
+    # Create Action Links
     if 'Email Address' in f.columns:
         f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
     if 'Phone Number' in f.columns:
         f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
+        
+    # Reorder columns
     cols = list(f.columns)
-    base = [c for c in cols if c not in ['📧', '📞']]
+    base = [c for c in cols if c not in ['📧', '📞', 'Days Idle']]
+    
+    if 'Full Name' in base:
+        base.insert(base.index('Full Name') + 1, 'Days Idle')
     if 'Email Address' in base:
         base.insert(base.index('Email Address') + 1, '📧')
     if 'Phone Number' in base:
         base.insert(base.index('Phone Number') + 1, '📞')
+        
     return f[base]
 
 table_config = {
@@ -152,6 +169,11 @@ table_config = {
     "📧": st.column_config.LinkColumn(" ", display_text="Email"),
     "Phone Number": st.column_config.TextColumn("Phone Number"),
     "📞": st.column_config.LinkColumn(" ", display_text="Call"),
+    "Days Idle": st.column_config.NumberColumn(
+        "Days Idle",
+        help="Days since lead was created",
+        format="%d days",
+    )
 }
 
 # --- DASHBOARD EXECUTION ---
@@ -196,13 +218,10 @@ try:
                 st.session_state.status_filter = "All"
                 st.rerun()
 
-    # --- TABS WITH INTEGRATED ANALYTICS ---
     t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
-
     with t1:
         render_market_insights(filtered_prod, timeframe)
         st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
-
     with t2:
         render_market_insights(filtered_rec, timeframe)
         st.dataframe(process_table(raw_rec_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
@@ -210,23 +229,17 @@ try:
     # --- UPDATE FORM ---
     st.markdown("---")
     st.subheader("📝 Update Lead")
-    
-    # Selection Area
     u1, u2 = st.columns([1, 2])
     with u1:
         target_ws = st.radio("Sheet to Update:", ["Product", "Recruitment"], horizontal=True)
         active_df = raw_prod_df if target_ws == "Product" else raw_rec_df
-        
-        # Searchable Dropdown Logic
         if not active_df.empty:
             lead_options = active_df.apply(lambda x: f"{x['Full Name']} ({x['Email Address']})", axis=1).tolist()
             selected_lead_display = st.selectbox("Find Lead (Type Name or Email):", lead_options)
-            # Extract email back out to find row
             selected_email = selected_lead_display.split('(')[-1].strip(')')
         else:
             selected_email = None
 
-    # Edit & Save Area
     with u2:
         if selected_email:
             row = active_df[active_df['Email Address'] == selected_email].iloc[0]
