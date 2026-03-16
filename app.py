@@ -12,7 +12,6 @@ st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 st.markdown(f"""
     <style>
     /* 1. NUCLEAR THEME OVERRIDE */
-    /* This redefines the 'primary red' variable Streamlit is using */
     :root {{
         --primary-color: #3b0710 !important;
     }}
@@ -21,7 +20,30 @@ st.markdown(f"""
         border-top: 8px solid #D4AF37;
         --st-primary-color: #3b0710 !important;
     }}
-    
+
+    /* --- THE RED-KILLER OVERRIDE --- */
+    /* Target the Segmented Control container and the 'red' active indicator */
+    div[data-testid="stSegmentedControl"] > div {{
+        border: 1px solid #D4AF37 !important;
+    }}
+
+    /* Force the active background to Burgundy and text to Gold */
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
+        background-color: #3b0710 !important;
+        color: #D4AF37 !important;
+        box-shadow: none !important;
+    }}
+
+    /* Target the inner span that often holds the primary color text */
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"] div[data-testid="stMarkdownContainer"] p {{
+        color: #D4AF37 !important;
+    }}
+
+    /* Force Radio Buttons (the circle and the label) */
+    div[data-testid="stRadio"] div[role="radiogroup"] label div[data-baseweb="radio"] > div:nth-child(1) {{
+        background-color: #3b0710 !important;
+    }}
+
     /* 2. FORCING SEGMENTED CONTROL COLORS */
     div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
         background-color: #3b0710 !important;
@@ -29,12 +51,10 @@ st.markdown(f"""
     }}
 
     /* 3. FORCING RADIO BUTTONS (Sheet to Update) */
-    /* This targets the little circles in the radio buttons */
     div[data-testid="stRadio"] div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] {{
         color: #3b0710 !important;
     }}
     
-    /* Force the radio circle color */
     div[data-testid="stRadio"] label div[data-baseweb="radio"] div {{
         background-color: #3b0710 !important;
     }}
