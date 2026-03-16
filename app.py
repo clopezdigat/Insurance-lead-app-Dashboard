@@ -152,8 +152,6 @@ try:
 
     with st.sidebar:
         st.title("🛡️ Admin Panel")
-        st.write("Logged in as: **Agency Admin**")
-        st.markdown("---")
         timeframe = st.selectbox("Performance Period:", ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "6 month", "1 year", "All Time"], index=3)
         if st.button("Refresh Data"):
             st.cache_data.clear()
