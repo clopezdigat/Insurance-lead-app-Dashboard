@@ -10,7 +10,7 @@ st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
 st.markdown(f"""
     <style>
-    .stApp {{ border-top: 8px solid #D4AF37; }}
+    .stApp {{ border-top: 8px solid #3b0710; }}
     
     .hero-box {{
         background-color: #3b0710;
@@ -44,15 +44,22 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* Sticky Search Bar */
-    div[data-testid="stVerticalBlock"] > div:has(div.sticky-search-wrapper) {{
+    /* STICKY HEADER SECTION (Gold Lines + Search) */
+    div[data-testid="stVerticalBlock"] > div:has(div.sticky-header) {{
         position: sticky;
         top: 0rem;
         background-color: white;
-        z-index: 999;
-        padding-top: 10px;
-        padding-bottom: 10px;
+        z-index: 1000;
+        padding: 0px;
+        margin-bottom: 1rem;
+    }}
+    
+    .sticky-header {{
+        border-top: 2px solid #D4AF37;
         border-bottom: 2px solid #D4AF37;
+        padding-top: 15px;
+        padding-bottom: 15px;
+        background-color: white;
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -131,39 +138,27 @@ def render_market_insights(df, timeframe_label):
 def process_table(df, s_query, s_filter):
     if df.empty: return df
     f = df.copy()
-    
-    # Calculate Days Idle
     if 'Timestamp' in f.columns:
         f['Timestamp'] = pd.to_datetime(f['Timestamp'], errors='coerce')
         now = datetime.now()
         f['Days Idle'] = (now - f['Timestamp']).dt.days
         f['Days Idle'] = f['Days Idle'].apply(lambda x: max(x, 0) if pd.notnull(x) else 0)
-
-    # Apply Filters
     if s_query: 
         f = f[f['Full Name'].str.contains(s_query, case=False, na=False)]
     if s_filter != "All": 
         f = f[f['Status'] == s_filter]
-    
-    # Create Action Links
     if 'Email Address' in f.columns:
         f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
     if 'Phone Number' in f.columns:
         f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
-        
-    # Reorder columns: Days Idle moved to the left of Timestamp
     cols = list(f.columns)
     base = [c for c in cols if c not in ['📧', '📞', 'Days Idle']]
-    
     if 'Timestamp' in base:
         base.insert(base.index('Timestamp'), 'Days Idle')
-    
-    # Keep the quick-action icons next to their data
     if 'Email Address' in base:
         base.insert(base.index('Email Address') + 1, '📧')
     if 'Phone Number' in base:
         base.insert(base.index('Phone Number') + 1, '📞')
-        
     return f[base]
 
 table_config = {
@@ -171,11 +166,7 @@ table_config = {
     "📧": st.column_config.LinkColumn(" ", display_text="Email"),
     "Phone Number": st.column_config.TextColumn("Phone Number"),
     "📞": st.column_config.LinkColumn(" ", display_text="Call"),
-    "Days Idle": st.column_config.NumberColumn(
-        "Days Idle",
-        help="Days since lead was created",
-        format="%d days",
-    )
+    "Days Idle": st.column_config.NumberColumn("Days Idle", help="Days since lead was created", format="%d days"),
 }
 
 # --- DASHBOARD EXECUTION ---
@@ -205,8 +196,9 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
+    # --- FULL STICKY HEADER ---
     with st.container():
-        st.markdown('<div class="sticky-search-wrapper"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="sticky-header">', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
             search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
@@ -219,6 +211,7 @@ try:
                 st.session_state.search_query = ""
                 st.session_state.status_filter = "All"
                 st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
     t1, t2 = st.tabs(["🛍️ Products", "🤝 Recruits"])
     with t1:
@@ -239,8 +232,7 @@ try:
             lead_options = active_df.apply(lambda x: f"{x['Full Name']} ({x['Email Address']})", axis=1).tolist()
             selected_lead_display = st.selectbox("Find Lead (Type Name or Email):", lead_options)
             selected_email = selected_lead_display.split('(')[-1].strip(')')
-        else:
-            selected_email = None
+        else: selected_email = None
 
     with u2:
         if selected_email:
@@ -252,7 +244,6 @@ try:
                 new_st = st.selectbox("Update Status:", st_opts, index=st_opts.index(curr_st) if curr_st in st_opts else 0)
             with cs2:
                 new_note = st.text_area("Edit Notes:", value=str(row.get('Notes', '')), height=68)
-            
             if st.button("Save Changes to Google Sheet", use_container_width=True):
                 gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
                 ws = gc.open("Lead Manager").worksheet(target_ws)
