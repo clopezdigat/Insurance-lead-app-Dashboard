@@ -68,14 +68,8 @@ try:
         if selected_status != "All" and 'Status' in filtered.columns:
             filtered = filtered[filtered['Status'] == selected_status]
         
-        # --- THE FIX: Create "Hidden" Link Columns ---
-        # We keep the original columns 100% clean
-        if 'Email Address' in filtered.columns:
-            filtered['email_link'] = filtered['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
-        if 'Phone Number' in filtered.columns:
-            filtered['phone_link'] = filtered['Phone Number'].apply(
-                lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else ""
-            )
+        # WE DO NOT ADD mailto: OR tel: TO THE DATA HERE.
+        # This ensures the dataframe itself stays clean.
         return filtered
 
     display_prod = process_display_df(raw_prod_df)
@@ -88,35 +82,36 @@ try:
     m_col1.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
     m_col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
-    # --- THE FIX: Table Configuration ---
-    # We tell Streamlit to use the hidden columns for the URL but the clean columns for the TEXT
+    # --- THE STABLE FIX ---
+    # We use LinkColumn but don't force a URL. 
+    # Streamlit will see the raw text and automatically treat it as a link if it looks like an email.
     column_configuration = {
         "Email Address": st.column_config.LinkColumn(
             "Email Address",
-            url_template=display_prod['email_link'] if not display_prod.empty else None
+            display_text=None,
+            validate=None  # Removed complex validation to stay stable
         ),
         "Phone Number": st.column_config.LinkColumn(
             "Phone Number",
-            url_template=display_prod['phone_link'] if not display_prod.empty else None
+            display_text=None,
+            validate=None
         ),
-        "email_link": None, # Hides the helper column from the user
-        "phone_link": None  # Hides the helper column from the user
     }
-
-    # Custom config for recruitment tab to ensure link mapping is correct
-    column_configuration_rec = column_configuration.copy()
-    column_configuration_rec["Email Address"] = st.column_config.LinkColumn(
-        "Email Address", url_template=display_rec['email_link'] if not display_rec.empty else None
-    )
-    column_configuration_rec["Phone Number"] = st.column_config.LinkColumn(
-        "Phone Number", url_template=display_rec['phone_link'] if not display_rec.empty else None
-    )
 
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
     with tab1:
-        st.dataframe(display_prod.rename(index=lambda x: x + 1), use_container_width=True, column_config=column_configuration)
+        # We pass the data exactly as it is in the Google Sheet
+        st.dataframe(
+            display_prod.rename(index=lambda x: x + 1), 
+            use_container_width=True, 
+            column_config=column_configuration
+        )
     with tab2:
-        st.dataframe(display_rec.rename(index=lambda x: x + 1), use_container_width=True, column_config=column_configuration_rec)
+        st.dataframe(
+            display_rec.rename(index=lambda x: x + 1), 
+            use_container_width=True, 
+            column_config=column_configuration
+        )
 
     # CRM Update Section
     st.markdown("---")
