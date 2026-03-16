@@ -185,10 +185,10 @@ try:
         st.markdown('<div class="sticky-search-wrapper"></div>', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
-            search_query = st.text_input("Search:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
+            search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
         with s2:
             status_list = ["All", "New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
-            status_filter = st.selectbox("Status:", status_list, index=status_list.index(st.session_state.status_filter), key="st_select")
+            status_filter = st.selectbox("Status Filter:", status_list, index=status_list.index(st.session_state.status_filter), key="st_select")
         with s3:
             st.write(" ") 
             if st.button("Reset"):
@@ -201,49 +201,51 @@ try:
 
     with t1:
         render_market_insights(filtered_prod, timeframe)
-        st.dataframe(
-            process_table(raw_prod_df, search_query, status_filter), 
-            use_container_width=True, 
-            hide_index=True, 
-            column_config=table_config
-        )
+        st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
 
     with t2:
         render_market_insights(filtered_rec, timeframe)
-        st.dataframe(
-            process_table(raw_rec_df, search_query, status_filter), 
-            use_container_width=True, 
-            hide_index=True, 
-            column_config=table_config
-        )
+        st.dataframe(process_table(raw_rec_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
 
     # --- UPDATE FORM ---
     st.markdown("---")
     st.subheader("📝 Update Lead")
+    
+    # Selection Area
     u1, u2 = st.columns([1, 2])
     with u1:
-        target_ws = st.radio("Sheet:", ["Product", "Recruitment"], horizontal=True)
+        target_ws = st.radio("Sheet to Update:", ["Product", "Recruitment"], horizontal=True)
         active_df = raw_prod_df if target_ws == "Product" else raw_rec_df
-        selected_lead = st.selectbox("Lead (Email):", active_df['Email Address'].unique()) if not active_df.empty else None
+        
+        # Searchable Dropdown Logic
+        if not active_df.empty:
+            lead_options = active_df.apply(lambda x: f"{x['Full Name']} ({x['Email Address']})", axis=1).tolist()
+            selected_lead_display = st.selectbox("Find Lead (Type Name or Email):", lead_options)
+            # Extract email back out to find row
+            selected_email = selected_lead_display.split('(')[-1].strip(')')
+        else:
+            selected_email = None
 
+    # Edit & Save Area
     with u2:
-        if selected_lead:
-            row = active_df[active_df['Email Address'] == selected_lead].iloc[0]
+        if selected_email:
+            row = active_df[active_df['Email Address'] == selected_email].iloc[0]
             cs1, cs2 = st.columns(2)
             with cs1:
                 st_opts = ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
                 curr_st = row.get('Status', 'New')
-                new_st = st.selectbox("New Status:", st_opts, index=st_opts.index(curr_st) if curr_st in st_opts else 0)
+                new_st = st.selectbox("Update Status:", st_opts, index=st_opts.index(curr_st) if curr_st in st_opts else 0)
             with cs2:
-                new_note = st.text_area("Notes:", value=str(row.get('Notes', '')), height=68)
+                new_note = st.text_area("Edit Notes:", value=str(row.get('Notes', '')), height=68)
+            
             if st.button("Save Changes to Google Sheet", use_container_width=True):
                 gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
                 ws = gc.open("Lead Manager").worksheet(target_ws)
-                cell = ws.find(selected_lead)
+                cell = ws.find(selected_email)
                 headers = [h.strip() for h in ws.row_values(1)]
                 ws.update_cell(cell.row, headers.index("Status") + 1, new_st)
                 ws.update_cell(cell.row, headers.index("Notes") + 1, new_note)
-                st.success("Updated!")
+                st.success(f"Changes saved for {row['Full Name']}!")
                 st.cache_data.clear()
                 st.rerun()
 
