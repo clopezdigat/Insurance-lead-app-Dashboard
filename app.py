@@ -44,22 +44,21 @@ st.markdown(f"""
         border: 2px solid #3b0710;
     }}
 
-    /* STICKY HEADER SECTION (Gold Lines + Search) */
-    div[data-testid="stVerticalBlock"] > div:has(div.sticky-header) {{
+    /* FIXED STICKY HEADER CSS */
+    div[data-testid="stVerticalBlock"] > div:has(div.sticky-wrapper) {{
         position: sticky;
-        top: 0rem;
-        background-color: white;
+        top: -1px; /* Slight offset ensures the top border isn't clipped by the browser */
         z-index: 1000;
-        padding: 0px;
-        margin-bottom: 1rem;
+        background-color: white;
+        padding-bottom: 5px;
     }}
     
-    .sticky-header {{
+    .sticky-wrapper {{
         border-top: 2px solid #D4AF37;
         border-bottom: 2px solid #D4AF37;
-        padding-top: 15px;
-        padding-bottom: 15px;
+        padding: 15px 0px;
         background-color: white;
+        margin-bottom: 10px;
     }}
 
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
@@ -196,9 +195,9 @@ try:
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # --- FULL STICKY HEADER ---
+    # --- UPDATED STICKY SECTION ---
     with st.container():
-        st.markdown('<div class="sticky-header">', unsafe_allow_html=True)
+        st.markdown('<div class="sticky-wrapper">', unsafe_allow_html=True)
         s1, s2, s3 = st.columns([2, 1, 0.5])
         with s1:
             search_query = st.text_input("Search Main Table:", value=st.session_state.search_query, placeholder="Name...", key="s_input")
