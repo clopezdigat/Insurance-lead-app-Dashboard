@@ -34,10 +34,36 @@ def get_data():
         st.error(f"Connection Error: {e}")
         return pd.DataFrame(), pd.DataFrame(), "Error"
 
+# Metric Logic (The "deltatime stuff")
+def get_delta_metrics(df):
+    if df.empty or 'Timestamp' not in df.columns:
+        return 0, 0
+    temp_df = df.copy()
+    # Convert to datetime, handles various formats safely
+    temp_df['Timestamp'] = pd.to_datetime(temp_df['Timestamp'], errors='coerce').dt.tz_localize(None)
+    tz = pytz.timezone('US/Central')
+    now = datetime.now(tz).replace(tzinfo=None)
+    yesterday = now - timedelta(days=1)
+    day_before = now - timedelta(days=2)
+    
+    current_leads = len(temp_df[temp_df['Timestamp'] > yesterday])
+    previous_leads = len(temp_df[(temp_df['Timestamp'] > day_before) & (temp_df['Timestamp'] <= yesterday)])
+    return current_leads, (current_leads - previous_leads)
+
 # Main Dashboard
 try:
     raw_prod_df, raw_rec_df, last_sync = get_data()
     st.title("📋 Executive Oversight")
+
+    # Metrics Section (Restored)
+    p_count, p_delta = get_delta_metrics(raw_prod_df)
+    r_count, r_delta = get_delta_metrics(raw_rec_df)
+    
+    m_col1, m_col2 = st.columns(2)
+    with m_col1:
+        st.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
+    with m_col2:
+        st.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
     # Search & Filter
     st.markdown("### 🔍 Search & Filter")
@@ -51,25 +77,20 @@ try:
         if df.empty: return df
         filtered = df.copy()
         
-        # Apply Search
         if search_query and 'Full Name' in filtered.columns:
             filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
         
-        # Apply Status Filter
         if selected_status != "All" and 'Status' in filtered.columns:
             filtered = filtered[filtered['Status'] == selected_status]
         
-        # Create the action columns
+        # Action columns (Keep main data clean)
         if 'Email Address' in filtered.columns:
             filtered['📧'] = filtered['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
         if 'Phone Number' in filtered.columns:
             filtered['📞'] = filtered['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
             
-        # --- REORDER COLUMNS FOR VISUAL FLOW ---
-        # This keeps the icons directly to the right of the info
+        # Column Ordering: Sandwich the icons next to the data
         cols = list(filtered.columns)
-        # Define the preferred order: Name -> Email -> Icon -> Phone -> Icon -> etc.
-        # We start with the base columns and re-insert the icons
         base_cols = [c for c in cols if c not in ['📧', '📞']]
         
         if 'Email Address' in base_cols:
@@ -88,9 +109,9 @@ try:
     # Table Configuration
     column_configuration = {
         "Email Address": st.column_config.TextColumn("Email Address"),
-        "📧": st.column_config.LinkColumn(" ", display_text="Email Lead"), # Space as title keeps it slim
+        "📧": st.column_config.LinkColumn(" ", display_text="Email Lead"),
         "Phone Number": st.column_config.TextColumn("Phone Number"),
-        "📞": st.column_config.LinkColumn(" ", display_text="Call Lead"), # Space as title keeps it slim
+        "📞": st.column_config.LinkColumn(" ", display_text="Call Lead"),
     }
 
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
@@ -140,6 +161,7 @@ try:
         if st.button("🔄 Refresh Data"):
             st.cache_data.clear()
             st.rerun()
+        st.markdown("---")
         st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
         st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
 
