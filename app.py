@@ -25,15 +25,8 @@ def get_data():
         prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
         rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
         
-        # CLEANING: Strip spaces from all column names immediately
         prod_df.columns = [c.strip() for c in prod_df.columns]
         rec_df.columns = [c.strip() for c in rec_df.columns]
-        
-        # Ensure data is treated as strings to prevent JS crashes
-        for df in [prod_df, rec_df]:
-            if not df.empty:
-                for col in df.columns:
-                    df[col] = df[col].astype(str)
         
         tz = pytz.timezone('US/Central')
         sync_time = datetime.now(tz).strftime("%I:%M %p")
@@ -71,13 +64,21 @@ try:
         selected_status = st.selectbox("Filter by Status:", all_statuses)
 
     def process_display_df(df):
-        if df.empty:
-            return df
+        if df.empty: return df
         filtered = df.copy()
         if search_query and 'Full Name' in filtered.columns:
             filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
         if selected_status != "All" and 'Status' in filtered.columns:
             filtered = filtered[filtered['Status'] == selected_status]
+        
+        # --- THE FUNCTIONAL FIX ---
+        # We store the "Link" version in the actual cell. 
+        # Streamlit's 'display_text=None' in the config below will strip the prefix visually.
+        if 'Email Address' in filtered.columns:
+            filtered['Email Address'] = filtered['Email Address'].apply(lambda x: f"mailto:{x}" if x and "@" in str(x) else x)
+        if 'Phone Number' in filtered.columns:
+            filtered['Phone Number'] = filtered['Phone Number'].apply(lambda x: f"tel:{x}" if x and str(x).strip() != "" else x)
+        
         return filtered
 
     display_prod = process_display_df(raw_prod_df)
@@ -90,10 +91,11 @@ try:
     m_col1.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
     m_col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
-    # Table Configuration - Clean Raw Text Only
+    # --- THE VISUAL FIX ---
+    # LinkColumn + display_text=None means "Use the link, but show the text without the prefix"
     column_configuration = {
-        "Email Address": st.column_config.TextColumn("Email Address"),
-        "Phone Number": st.column_config.TextColumn("Phone Number"),
+        "Email Address": st.column_config.LinkColumn("Email Address", display_text=None),
+        "Phone Number": st.column_config.LinkColumn("Phone Number", display_text=None),
     }
 
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
@@ -118,7 +120,6 @@ try:
         target = st.radio("Target Sheet:", ["Product", "Recruitment"], horizontal=True)
         df_to_use = raw_prod_df if target == "Product" else raw_rec_df
         
-        # SAFETY CHECK: Only allow selection if the column exists
         if not df_to_use.empty and 'Email Address' in df_to_use.columns:
             email_list = df_to_use['Email Address'].unique().tolist()
             lead_email = st.selectbox("Select Lead to Edit:", email_list)
@@ -128,7 +129,6 @@ try:
     
     with c2:
         if lead_email:
-            # Find the lead data safely
             match = df_to_use[df_to_use['Email Address'] == lead_email]
             if not match.empty:
                 lead_data = match.iloc[0]
@@ -148,7 +148,6 @@ try:
                         ws = sh.worksheet(target)
                         cell = ws.find(lead_email)
                         header = ws.row_values(1)
-                        # Clean headers again for indexing
                         clean_header = [h.strip() for h in header]
                         
                         if "Status" in clean_header:
