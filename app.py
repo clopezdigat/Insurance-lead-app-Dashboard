@@ -5,7 +5,7 @@ from datetime import datetime
 import pytz
 
 # Branding & UI
-st.set_page_config(page_title="Agency Admin", page icon="📊", layout="wide")
+st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
 st.markdown("""
     <style>
