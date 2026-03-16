@@ -4,8 +4,9 @@ import gspread
 from datetime import datetime, timedelta
 import pytz
 
-# 1. Branding & UI
+# Branding & UI
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
+
 
 st.markdown("""
     <style>
@@ -15,7 +16,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Data Connection
+# Data Connection
 @st.cache_data(ttl=600)
 def get_data():
     gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
@@ -25,12 +26,11 @@ def get_data():
     rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
     return prod_df, rec_df
 
-# 3. Helper Function for Metrics
+# Helper Function for Metrics
 def get_delta_metrics(df):
     if df.empty or 'Timestamp' not in df.columns:
         return 0, 0
     
-    # Process a copy to avoid modifying the displayed dataframe
     temp_df = df.copy()
     temp_df['Timestamp'] = pd.to_datetime(temp_df['Timestamp']).dt.tz_localize(None)
     
@@ -45,59 +45,76 @@ def get_delta_metrics(df):
     
     return current_leads, (current_leads - previous_leads)
 
-# 4. Main Dashboard Logic
+# Main Dashboard Logic
 try:
-    prod_df, rec_df = get_data()
+    raw_prod_df, raw_rec_df = get_data()
     
-    p_count, p_delta = get_delta_metrics(prod_df)
-    r_count, r_delta = get_delta_metrics(rec_df)
-
     st.title("📋 Executive Oversight")
 
-    col1, col2 = st.columns(2)
-    col1.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
-    col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
+    # Search & filter bar
+    st.markdown("### 🔍 Search & Filter")
+    f_col1, f_col2 = st.columns(2)
+    
+    with f_col1:
+        search_query = st.text_input("Search by Full Name:", placeholder="Start typing a name...")
+    
+    with f_col2:
+        all_statuses = ["All", "New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
+        selected_status = st.selectbox("Filter by Status:", all_statuses)
+
+    # Apply Logic to Dataframes
+    def apply_filters(df):
+        filtered = df.copy()
+        if search_query:
+            # Case-insensitive search
+            filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
+        if selected_status != "All":
+            filtered = filtered[filtered['Status'] == selected_status]
+        return filtered
+
+    display_prod = apply_filters(raw_prod_df)
+    display_rec = apply_filters(raw_rec_df)
+
+    # Metrics (Total Agency Activity)
+    p_count, p_delta = get_delta_metrics(raw_prod_df)
+    r_count, r_delta = get_delta_metrics(raw_rec_df)
+
+    m_col1, m_col2 = st.columns(2)
+    m_col1.metric("New Product Leads (24h Total)", p_count, delta=int(p_delta))
+    m_col2.metric("New Recruits (24h Total)", r_count, delta=int(r_delta))
 
     # Display Tabs
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
 
     with tab1:
-        # Display with index starting at 1
-        st.dataframe(prod_df.rename(index=lambda x: x + 1), use_container_width=True)
+        st.dataframe(display_prod.rename(index=lambda x: x + 1), use_container_width=True)
     with tab2:
-        st.dataframe(rec_df.rename(index=lambda x: x + 1), use_container_width=True)
+        st.dataframe(display_rec.rename(index=lambda x: x + 1), use_container_width=True)
 
-    # 5. CRM MANAGEMENT SECTION (Notes & Status)
+    # 5. CRM MANAGEMENT SECTION
     st.markdown("---")
-    st.subheader("📝 Lead Management")
+    st.subheader("📝 Update Lead Progress")
 
     c1, c2 = st.columns([1, 2])
     
     with c1:
         target = st.radio("Target Sheet:", ["Product", "Recruitment"], horizontal=True)
-        df_to_use = prod_df if target == "Product" else rec_df
-        
-        # Identify lead by Email Address (from your screenshot)
+        df_to_use = raw_prod_df if target == "Product" else raw_rec_df
         lead_email = st.selectbox("Select Lead by Email Address:", df_to_use['Email Address'].tolist())
     
     with c2:
-        # Get existing values
         lead_data = df_to_use[df_to_use['Email Address'] == lead_email].iloc[0]
         
         col_s, col_n = st.columns(2)
         with col_s:
-            # Status Dropdown
             status_options = ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
-            # Pre-select existing status if it exists, else "New"
             existing_status = lead_data.get('Status', 'New')
             current_status_idx = status_options.index(existing_status) if existing_status in status_options else 0
-            
-            new_status = st.selectbox("Update Status:", status_options, index=current_status_idx)
+            new_status = st.selectbox("New Status:", status_options, index=current_status_idx)
             
         with col_n:
-            # Notes Area
             existing_note = lead_data.get('Notes', '')
-            new_note = st.text_area("Update Notes:", value=str(existing_note))
+            new_note = st.text_area("New Notes:", value=str(existing_note))
 
     if st.button("Save Changes to Google Sheet"):
         try:
@@ -105,15 +122,12 @@ try:
             sh = gc.open("Lead Manager")
             ws = sh.worksheet(target)
             
-            # Find the row
             cell = ws.find(lead_email)
             header = ws.row_values(1)
             
-            # Find column indices
             status_idx = header.index("Status") + 1
             notes_idx = header.index("Notes") + 1
             
-            # Update values
             ws.update_cell(cell.row, status_idx, new_status)
             ws.update_cell(cell.row, notes_idx, new_note)
             
@@ -121,7 +135,7 @@ try:
             st.cache_data.clear()
             st.rerun()
         except Exception as e:
-            st.error(f"Update failed: {e}. Check if 'Status' and 'Notes' columns exist in your sheet.")
+            st.error(f"Update failed: {e}")
 
 except Exception as e:
     st.error(f"Error loading data: {e}")
