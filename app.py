@@ -240,7 +240,7 @@ try:
     
     m1, m2 = st.columns(2)
     m1.metric(f"Product Leads", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
-    m2.metric(f"Recruits", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
+    m2.metric(f"Recruitment", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
     # --- STICKY NAVIGATION BAR ---
     with st.container():
@@ -259,9 +259,9 @@ try:
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
-        view_mode = st.segmented_control("Lead Category:", options=["🛍️ Product", "🤝 Recruitment"], default="🛍️ Products")
+        view_mode = st.segmented_control("Lead Category:", options=["🛍️ Product", "🤝 Recruitment"], default="🛍️ Product")
 
-    if view_mode == "🛍️ Products":
+    if view_mode == "🛍️ Product":
         render_market_insights(filtered_prod, timeframe)
         st.dataframe(process_table(raw_prod_df, search_query, status_filter), use_container_width=True, hide_index=True, column_config=table_config)
     else:
