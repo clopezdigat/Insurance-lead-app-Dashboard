@@ -11,55 +11,45 @@ st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 # Custom CSS for Burgundy/Gold theme
 st.markdown(f"""
     <style>
-    /* 1. NUCLEAR THEME OVERRIDE */
+    /* 1. GLOBAL OVERRIDE */
     :root {{
         --primary-color: #3b0710 !important;
     }}
 
     .stApp {{ 
         border-top: 8px solid #D4AF37;
-        --st-primary-color: #3b0710 !important;
     }}
 
-    /* --- THE RED-KILLER OVERRIDE --- */
-    /* Target the Segmented Control container and the 'red' active indicator */
-    div[data-testid="stSegmentedControl"] > div {{
-        border: 1px solid #D4AF37 !important;
+    /* 2. THE PERMANENT FIX FOR PRODUCT/RECRUITMENT TABS */
+    
+    /* Force the container of the segmented control */
+    div[data-testid="stSegmentedControl"] {{
+        background-color: transparent !important;
     }}
 
-    /* Force the active background to Burgundy and text to Gold */
+    /* Target the SELECTED tab button */
     div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
         background-color: #3b0710 !important;
-        color: #D4AF37 !important;
+        border: 1px solid #D4AF37 !important;
         box-shadow: none !important;
     }}
 
-    /* Target the inner span that often holds the primary color text */
-    div[data-testid="stSegmentedControl"] button[aria-checked="true"] div[data-testid="stMarkdownContainer"] p {{
+    /* Target the TEXT/LABEL inside the selected tab (The most stubborn part) */
+    div[data-testid="stSegmentedControl"] button[aria-checked="true"] * {{
         color: #D4AF37 !important;
     }}
 
-    /* Force Radio Buttons (the circle and the label) */
-    div[data-testid="stRadio"] div[role="radiogroup"] label div[data-baseweb="radio"] > div:nth-child(1) {{
-        background-color: #3b0710 !important;
-    }}
-
-    /* 2. FORCING SEGMENTED CONTROL COLORS */
-    div[data-testid="stSegmentedControl"] button[aria-checked="true"] {{
-        background-color: #3b0710 !important;
-        color: #D4AF37 !important;
-    }}
-
-    /* 3. FORCING RADIO BUTTONS (Sheet to Update) */
-    div[data-testid="stRadio"] div[role="radiogroup"] label div[data-testid="stMarkdownContainer"] {{
+    /* Target the UNSELECTED tabs to ensure they stay Burgundy text */
+    div[data-testid="stSegmentedControl"] button[aria-checked="false"] * {{
         color: #3b0710 !important;
     }}
-    
-    div[data-testid="stRadio"] label div[data-baseweb="radio"] div {{
+
+    /* Kill the red sliding indicator bar that sits behind/under the tabs */
+    div[data-testid="stSegmentedControl"] div[role="tablist"] div[data-baseweb="tab-highlight"] {{
         background-color: #3b0710 !important;
     }}
 
-    /* 4. REST OF YOUR BRANDING */
+    /* 3. REST OF YOUR BRANDING */
     .hero-box {{
         background-color: #3b0710;
         padding: 2rem;
