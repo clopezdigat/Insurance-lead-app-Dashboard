@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as pd
+import pd
 import gspread
 from datetime import datetime, timedelta
 import pytz
@@ -8,9 +8,10 @@ import plotly.express as px
 # --- BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
-# Custom CSS for Hero Box and Button Hover Inversion
+# Custom CSS for Hero Box, Button Inversion, and Sticky Search
 st.markdown(f"""
     <style>
+    /* Top Gold Bar accent */
     .stApp {{ border-top: 8px solid #D4AF37; }}
     
     /* The "Hero Box" Title Section */
@@ -33,7 +34,6 @@ st.markdown(f"""
     }}
 
     /* Button Styling & Hover Inversion */
-    /* Targetting Streamlit buttons specifically */
     div.stButton > button {{
         background-color: #3b0710;
         color: #D4AF37;
@@ -46,6 +46,18 @@ st.markdown(f"""
         background-color: #D4AF37 !important;
         color: #3b0710 !important;
         border: 2px solid #3b0710;
+    }}
+
+    /* Sticky Search Bar Logic */
+    /* This pins the search container to the top just under the gold bar */
+    div[data-testid="stVerticalBlock"] > div:has(div.sticky-search-wrapper) {{
+        position: sticky;
+        top: 0rem;
+        background-color: white;
+        z-index: 999;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #f0f2f6;
     }}
 
     /* Standard Elements */
@@ -165,13 +177,16 @@ try:
                 fig.update_layout(height=240, margin=dict(l=0,r=0,t=0,b=0), xaxis_title=None, yaxis_title=None)
                 st.plotly_chart(fig, use_container_width=True)
 
-    # --- LEAD INVENTORY & SEARCH ---
-    st.markdown("### 🔍 Lead Inventory")
-    s1, s2 = st.columns([2, 1])
-    with s1:
-        search_query = st.text_input("Search Leads:", placeholder="Search by name...")
-    with s2:
-        status_filter = st.selectbox("Status Filter:", ["All", "New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"])
+    # --- STICKY LEAD INVENTORY & SEARCH ---
+    # We wrap this in a container to trigger the CSS sticky logic
+    with st.container():
+        st.markdown('<div class="sticky-search-wrapper"></div>', unsafe_allow_html=True)
+        st.markdown("### 🔍 Lead Inventory")
+        s1, s2 = st.columns([2, 1])
+        with s1:
+            search_query = st.text_input("Search Leads:", placeholder="Search by name...")
+        with s2:
+            status_filter = st.selectbox("Status Filter:", ["All", "New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"])
 
     def process_table(df):
         if df.empty: return df
@@ -226,8 +241,9 @@ try:
                 current_st = row_data.get('Status', 'New')
                 new_st = st.selectbox("Set Status:", st_opts, index=st_opts.index(current_st) if current_st in st_opts else 0)
             with cs2:
-                new_note = st.text_area("Update Notes:", value=str(row_data.get('Notes', '')))
+                new_note = st.text_area("Update Notes:", value=str(row_data.get('Notes', '')), height=68)
             
+            # Button spans the width of the update inputs (u2)
             if st.button("Save Changes to Google Sheet", use_container_width=True):
                 gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
                 ws = gc.open("Lead Manager").worksheet(target_ws)
