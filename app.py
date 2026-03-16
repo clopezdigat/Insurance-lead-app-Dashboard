@@ -8,12 +8,12 @@ import plotly.express as px
 # --- BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
-# Custom CSS to match Client Portals (Burgundy #3b0710 & Gold #D4AF37)
+# Custom CSS for Hero Box and Button Hover Inversion
 st.markdown(f"""
     <style>
     .stApp {{ border-top: 8px solid #D4AF37; }}
     
-    /* Hero Box for Title Section */
+    /* The "Hero Box" Title Section */
     .hero-box {{
         background-color: #3b0710;
         padding: 2rem;
@@ -32,15 +32,24 @@ st.markdown(f"""
         opacity: 0.9;
     }}
 
-    h3 {{ color: #3b0710 !important; }}
-    div[data-testid="stMetricValue"] {{ color: #3b0710; }}
-    [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; background-color: #fdfaf3; }}
-    .stButton>button {{ background-color: #3b0710; color: white; border-radius: 5px; border: none; }}
-    .stButton>button:hover {{ background-color: #D4AF37; color: #3b0710; }}
-    
-    /* Table & Tab Styling */
-    .stTabs [data-baseweb="tab-list"] {{ gap: 24px; }}
-    .stTabs [data-baseweb="tab"] {{ color: #3b0710; font-weight: 600; }}
+    /* Button Styling & Hover Inversion */
+    /* Targetting Streamlit buttons specifically */
+    div.stButton > button {{
+        background-color: #3b0710;
+        color: #D4AF37;
+        border: 2px solid #D4AF37;
+        border-radius: 5px;
+        transition: all 0.3s ease;
+    }}
+
+    div.stButton > button:hover {{
+        background-color: #D4AF37 !important;
+        color: #3b0710 !important;
+        border: 2px solid #3b0710;
+    }}
+
+    /* Standard Elements */
+    [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -53,7 +62,6 @@ def get_data():
         prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
         rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
         
-        # Clean column headers
         prod_df.columns = [c.strip() for c in prod_df.columns]
         rec_df.columns = [c.strip() for c in rec_df.columns]
         
@@ -84,10 +92,7 @@ def get_filtered_data(df, timeframe_label):
     if timeframe_label == "All Time":
         return len(temp_df), 0, temp_df
     
-    # Slice data for the selected window
     current_df = temp_df[temp_df['Timestamp'] > (now - duration)]
-    
-    # Calculate delta from previous period
     prev_start = now - (duration * 2)
     prev_end = now - duration
     prev_count = len(temp_df[(temp_df['Timestamp'] > prev_start) & (temp_df['Timestamp'] <= prev_end)])
@@ -106,12 +111,12 @@ try:
             index=3
         )
         st.markdown("---")
-        if st.button("🔄 Refresh Dataset"):
+        if st.button("🔄 Refresh Data"):
             st.cache_data.clear()
             st.rerun()
         st.caption(f"Last Sync: {last_sync} CST")
 
-    # Hero Box Header (Seamless with Client Forms)
+    # Hero Box Header
     st.markdown(f"""
         <div class="hero-box">
             <h1>📋 Executive Oversight</h1>
@@ -136,7 +141,6 @@ try:
         with v1:
             st.write("**Activity Trend**")
             if not combined.empty:
-                # Use Hourly for short windows, Daily for long ones
                 rule = 'H' if timeframe in ["1 hr", "12 hr", "24 hr"] else 'D'
                 trend = combined.set_index('Timestamp').resample(rule).size().reset_index(name='Leads')
                 fig = px.line(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
@@ -144,16 +148,16 @@ try:
                 st.plotly_chart(fig, use_container_width=True)
 
         with v2:
-            st.write("**Market Share (Location)**")
+            st.write("**Market Share**")
             loc_col = 'State' if 'State' in filtered_prod.columns else ('City' if 'City' in filtered_prod.columns else None)
             if loc_col and not filtered_prod.empty:
                 loc_data = filtered_prod[loc_col].value_counts().reset_index()
-                fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c', '#a67c00'])
+                fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c'])
                 fig.update_layout(height=240, margin=dict(l=0,r=0,t=0,b=0), showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
 
         with v3:
-            st.write("**Interest Breakdown**")
+            st.write("**Top Interests**")
             int_col = 'Product Interest' if 'Product Interest' in filtered_prod.columns else ('Interest' if 'Interest' in filtered_prod.columns else None)
             if int_col and not filtered_prod.empty:
                 int_data = filtered_prod[int_col].value_counts().reset_index()
@@ -177,13 +181,11 @@ try:
         if status_filter != "All":
             f = f[f['Status'] == status_filter]
         
-        # Link Handling
         if 'Email Address' in f.columns:
             f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
         if 'Phone Number' in f.columns:
             f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
             
-        # Column Ordering: Sandwich icons next to info
         cols = list(f.columns)
         base = [c for c in cols if c not in ['📧', '📞']]
         if 'Email Address' in base: base.insert(base.index('Email Address') + 1, '📧')
@@ -226,7 +228,7 @@ try:
             with cs2:
                 new_note = st.text_area("Update Notes:", value=str(row_data.get('Notes', '')))
             
-            if st.button("Commit Changes to Cloud", use_container_width=True):
+            if st.button("Save Changes to Google Sheet", use_container_width=True):
                 gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
                 ws = gc.open("Lead Manager").worksheet(target_ws)
                 cell = ws.find(selected_lead)
