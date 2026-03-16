@@ -7,8 +7,8 @@ import pytz
 import plotly.express as px
 
 # Log in 
-hashed_pw = stauth.Hasher(['Password']).generate()
-st.write(f"COPY THIS HASH: {hashed_pw[0]}")
+hashed_pw = stauth.Hasher.hash('Password')
+print(f"COPY THIS HASH: {hashed_pw}")
 
 # --- BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
