@@ -10,7 +10,7 @@ import streamlit_authenticator as stauth
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
 # Auth Setup
-authenticato = stauth.Authenticate(
+authenticator = stauth.Authenticate(
     st.secrets['credentials'],
     st.secrets['cookie']['name'],
     st.secrets['cookie']['key'],
