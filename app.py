@@ -6,7 +6,7 @@ import pytz
 import plotly.express as px
 
 import streamlit_authenticator as stauth
-temp_hash = stauth.Hasher.hash('Password')
+temp_hash = stauth.Hasher.hash('0412')
 st.title("Copy the string below:")
 st.code(temp_hash)
 st.stop()
