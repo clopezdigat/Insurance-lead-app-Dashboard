@@ -1,5 +1,5 @@
 import streamlit as st
-import pd
+import pandas as pd
 import gspread
 from datetime import datetime, timedelta
 import pytz
