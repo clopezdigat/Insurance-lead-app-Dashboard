@@ -61,6 +61,10 @@ try:
     col1.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
     col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
+    # Shift Indeces
+    prod_df.index = prod_df.index + 1
+    rec_df.index = rec_df.index + 1
+
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Pipeline"])
 
     with tab1:
