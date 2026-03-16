@@ -24,16 +24,13 @@ def get_data():
     prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
     rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
     
-    # Clean headers and ensure essential columns exist
     for df in [prod_df, rec_df]:
         df.columns = [c.strip() for c in df.columns]
         if 'Status' not in df.columns: df['Status'] = 'New'
         if 'Notes' not in df.columns: df['Notes'] = ''
     
-    # Capture the sync time
     tz = pytz.timezone('US/Central')
     sync_time = datetime.now(tz).strftime("%I:%M %p")
-        
     return prod_df, rec_df, sync_time
 
 # Metric Logic
@@ -70,9 +67,17 @@ try:
             filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
         if selected_status != "All" and 'Status' in filtered.columns:
             filtered = filtered[filtered['Status'] == selected_status]
+        
+        # --- THE FIX: Create "Hidden" Link Columns ---
+        # We keep the original columns 100% clean
+        if 'Email Address' in filtered.columns:
+            filtered['email_link'] = filtered['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
+        if 'Phone Number' in filtered.columns:
+            filtered['phone_link'] = filtered['Phone Number'].apply(
+                lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else ""
+            )
         return filtered
 
-    # Create cleaned display versions
     display_prod = process_display_df(raw_prod_df)
     display_rec = process_display_df(raw_rec_df)
 
@@ -83,54 +88,45 @@ try:
     m_col1.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
     m_col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
-    # Table Configuration
+    # --- THE FIX: Table Configuration ---
+    # We tell Streamlit to use the hidden columns for the URL but the clean columns for the TEXT
     column_configuration = {
         "Email Address": st.column_config.LinkColumn(
-            "Email Address", 
-            display_text=None
+            "Email Address",
+            url_template=display_prod['email_link'] if not display_prod.empty else None
         ),
         "Phone Number": st.column_config.LinkColumn(
-            "Phone Number", 
-            display_text=None
+            "Phone Number",
+            url_template=display_prod['phone_link'] if not display_prod.empty else None
         ),
+        "email_link": None, # Hides the helper column from the user
+        "phone_link": None  # Hides the helper column from the user
     }
 
-    # Add protocols for the clickable links (Visible data remains raw)
-    if not display_prod.empty:
-        if 'Email Address' in display_prod.columns:
-            display_prod['Email Address'] = display_prod['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
-        if 'Phone Number' in display_prod.columns:
-            display_prod['Phone Number'] = display_prod['Phone Number'].apply(lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else "")
-    
-    if not display_rec.empty:
-        if 'Email Address' in display_rec.columns:
-            display_rec['Email Address'] = display_rec['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
-        if 'Phone Number' in display_rec.columns:
-            display_rec['Phone Number'] = display_rec['Phone Number'].apply(lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}" if x else "")
+    # Custom config for recruitment tab to ensure link mapping is correct
+    column_configuration_rec = column_configuration.copy()
+    column_configuration_rec["Email Address"] = st.column_config.LinkColumn(
+        "Email Address", url_template=display_rec['email_link'] if not display_rec.empty else None
+    )
+    column_configuration_rec["Phone Number"] = st.column_config.LinkColumn(
+        "Phone Number", url_template=display_rec['phone_link'] if not display_rec.empty else None
+    )
 
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
     with tab1:
         st.dataframe(display_prod.rename(index=lambda x: x + 1), use_container_width=True, column_config=column_configuration)
     with tab2:
-        st.dataframe(display_rec.rename(index=lambda x: x + 1), use_container_width=True, column_config=column_configuration)
+        st.dataframe(display_rec.rename(index=lambda x: x + 1), use_container_width=True, column_config=column_configuration_rec)
 
     # CRM Update Section
     st.markdown("---")
     st.subheader("📝 Update Lead Progress")
-    
     c1, c2 = st.columns([1, 2])
     with c1:
         target = st.radio("Target Sheet:", ["Product", "Recruitment"], horizontal=True)
         df_to_use = raw_prod_df if target == "Product" else raw_rec_df
-        
-        # Defensive check for empty lists
         email_list = df_to_use['Email Address'].tolist() if 'Email Address' in df_to_use.columns else []
-        
-        if email_list:
-            lead_email = st.selectbox("Select Lead to Edit:", email_list)
-        else:
-            st.warning("No leads found in this category.")
-            lead_email = None
+        lead_email = st.selectbox("Select Lead to Edit:", email_list) if email_list else None
     
     with c2:
         if lead_email:
@@ -159,7 +155,6 @@ try:
                 except Exception as e:
                     st.error(f"Update failed: {e}")
 
-    # Sidebar Navigation & Timestamp
     with st.sidebar:
         st.markdown("---")
         st.markdown(f"**Last Sync:** {last_sync} CST")
