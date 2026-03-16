@@ -24,7 +24,6 @@ def get_data():
         prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
         rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
         
-        # Clean headers
         prod_df.columns = [c.strip() for c in prod_df.columns]
         rec_df.columns = [c.strip() for c in rec_df.columns]
         
@@ -51,30 +50,47 @@ try:
     def process_display_df(df):
         if df.empty: return df
         filtered = df.copy()
+        
+        # Apply Search
         if search_query and 'Full Name' in filtered.columns:
             filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
+        
+        # Apply Status Filter
         if selected_status != "All" and 'Status' in filtered.columns:
             filtered = filtered[filtered['Status'] == selected_status]
         
-        # --- THE FIX: Create separate link columns ---
-        # The main columns stay 100% CLEAN.
+        # Create the action columns
         if 'Email Address' in filtered.columns:
             filtered['📧'] = filtered['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
         if 'Phone Number' in filtered.columns:
             filtered['📞'] = filtered['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
+            
+        # --- REORDER COLUMNS FOR VISUAL FLOW ---
+        # This keeps the icons directly to the right of the info
+        cols = list(filtered.columns)
+        # Define the preferred order: Name -> Email -> Icon -> Phone -> Icon -> etc.
+        # We start with the base columns and re-insert the icons
+        base_cols = [c for c in cols if c not in ['📧', '📞']]
         
-        return filtered
+        if 'Email Address' in base_cols:
+            idx = base_cols.index('Email Address') + 1
+            base_cols.insert(idx, '📧')
+            
+        if 'Phone Number' in base_cols:
+            idx = base_cols.index('Phone Number') + 1
+            base_cols.insert(idx, '📞')
+            
+        return filtered[base_cols]
 
     display_prod = process_display_df(raw_prod_df)
     display_rec = process_display_df(raw_rec_df)
 
     # Table Configuration
-    # We show the raw data as TEXT (Clean) and the icons as LINKS (Functional)
     column_configuration = {
         "Email Address": st.column_config.TextColumn("Email Address"),
+        "📧": st.column_config.LinkColumn(" ", display_text="Email Lead"), # Space as title keeps it slim
         "Phone Number": st.column_config.TextColumn("Phone Number"),
-        "📧": st.column_config.LinkColumn("📧", display_text="Send Email"),
-        "📞": st.column_config.LinkColumn("📞", display_text="Call"),
+        "📞": st.column_config.LinkColumn(" ", display_text="Call Lead"), # Space as title keeps it slim
     }
 
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
