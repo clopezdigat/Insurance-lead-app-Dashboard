@@ -6,10 +6,10 @@ import pytz
 import plotly.express as px
 
 import streamlit_authenticator as stauth
-# Replace 'YourPasswordHere' with her actual password
 temp_hash = stauth.Hasher.hash('Password')
-st.heading(f"HASH: {temp_hash}")
-st.stop() # This freezes the app here so you can copy the text
+st.title("Copy the string below:")
+st.code(temp_hash)
+st.stop()
 
 # --- BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
