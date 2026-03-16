@@ -11,7 +11,10 @@ import copy
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
 # Auth Setup
-credentials = copy.deepcopy(st.secrets['credentials'])
+credentials = dict(st.secrets['credentials'])
+credentials['usernames'] = dict(credentials['usernames'])
+for username in credentials['usernames']:
+    credentials['usernames'][username] = dict(credentials['usernames'][username])
 
 authenticator = stauth.Authenticate(
     credentials,
