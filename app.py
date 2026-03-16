@@ -265,7 +265,7 @@ try:
         active_df = raw_prod_df if target_ws == "Product" else raw_rec_df
         if not active_df.empty:
             lead_options = active_df.apply(lambda x: f"{x['Full Name']} ({x['Email Address']})", axis=1).tolist()
-            selected_lead_display = st.selectbox("Find Lead:", lead_options)
+            selected_lead_display = st.selectbox("Find Lead:", lead_options, placeholder="Type Name or Email")
             selected_email = selected_lead_display.split('(')[-1].strip(')')
         else: selected_email = None
 
