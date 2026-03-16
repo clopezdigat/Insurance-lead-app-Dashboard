@@ -86,15 +86,15 @@ try:
     m_col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
     # Table configuration
-    # This hides the mailto: and tel: text while keeping them clickable
+    # Setting display_text=None shows the actual Email/Phone instead of a button
     column_configuration = {
         "Email Address": st.column_config.LinkColumn(
             "Email Address",
-            display_text="📧 Email Lead"
+            display_text=None  # This shows the actual email address
         ),
         "Phone Number": st.column_config.LinkColumn(
             "Phone Number",
-            display_text="📞 Call Lead"
+            display_text=None  # This shows the actual phone number
         ),
     }
 
