@@ -7,6 +7,10 @@ import pytz
 # Branding & UI
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
+if st.sidebar.text_input("Agency Access Key", type="password") != st.secrets["admin_password"]:
+    st.info("Please enter the access key in the sidebar to view the dashboard.")
+    st.stop()
+
 st.markdown("""
     <style>
     .stApp { border-top: 6px solid #D4AF37; }
@@ -49,7 +53,7 @@ try:
     raw_prod_df, raw_rec_df = get_data()
     st.title("📋 Executive Oversight")
 
-    # --- SEARCH & FILTER ---
+    # Search & filter
     st.markdown("### 🔍 Search & Filter")
     f_col1, f_col2 = st.columns(2)
     with f_col1:
@@ -58,28 +62,25 @@ try:
         all_statuses = ["All", "New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
         selected_status = st.selectbox("Filter by Status:", all_statuses)
 
-    # Filtering & Link Formatting
-    def format_and_filter(df):
+    # Filtering Logic (Formatting moved to column_config)
+    def apply_filters(df):
         filtered = df.copy()
         if search_query and 'Full Name' in filtered.columns:
             filtered = filtered[filtered['Full Name'].str.contains(search_query, case=False, na=False)]
         if selected_status != "All" and 'Status' in filtered.columns:
             filtered = filtered[filtered['Status'] == selected_status]
         
-        # One-touch link logic
-        # Convert Email to clickable mailto link
+        # Prepare URL strings for the LinkColumn (without markdown brackets)
         if 'Email Address' in filtered.columns:
-            filtered['Email Address'] = filtered['Email Address'].apply(lambda x: f"📧 [{x}](mailto:{x})")
-        
-        # Convert Phone to clickable tel link (stripping non-numeric chars for the protocol)
+            filtered['Email Address'] = filtered['Email Address'].apply(lambda x: f"mailto:{x}")
         if 'Phone Number' in filtered.columns:
             filtered['Phone Number'] = filtered['Phone Number'].apply(
-                lambda x: f"📞 [{x}](tel:{''.join(filter(str.isdigit, str(x)))})"
+                lambda x: f"tel:{''.join(filter(str.isdigit, str(x)))}"
             )
         return filtered
 
-    display_prod = format_and_filter(raw_prod_df)
-    display_rec = format_and_filter(raw_rec_df)
+    display_prod = apply_filters(raw_prod_df)
+    display_rec = apply_filters(raw_rec_df)
 
     # Metrics
     p_count, p_delta = get_delta_metrics(raw_prod_df)
@@ -88,14 +89,35 @@ try:
     m_col1.metric("New Product Leads (24h)", p_count, delta=int(p_delta))
     m_col2.metric("New Recruits (24h)", r_count, delta=int(r_delta))
 
-    # Display
+    # Table configuration
+    # This hides the mailto: and tel: text while keeping them clickable
+    column_configuration = {
+        "Email Address": st.column_config.LinkColumn(
+            "Email Address",
+            display_text="📧 Email Lead"
+        ),
+        "Phone Number": st.column_config.LinkColumn(
+            "Phone Number",
+            display_text="📞 Call Lead"
+        ),
+    }
+
+    # Display Tabs
     tab1, tab2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
     with tab1:
-        st.dataframe(display_prod.rename(index=lambda x: x + 1), use_container_width=True)
+        st.dataframe(
+            display_prod.rename(index=lambda x: x + 1), 
+            use_container_width=True,
+            column_config=column_configuration
+        )
     with tab2:
-        st.dataframe(display_rec.rename(index=lambda x: x + 1), use_container_width=True)
+        st.dataframe(
+            display_rec.rename(index=lambda x: x + 1), 
+            use_container_width=True,
+            column_config=column_configuration
+        )
 
-    # 5. CRM UPDATE SECTION
+    # CRM update section
     st.markdown("---")
     st.subheader("📝 Update Lead Progress")
     c1, c2 = st.columns([1, 2])
