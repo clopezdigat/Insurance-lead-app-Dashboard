@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 import pytz
 import plotly.express as px
 
-# Branding & UI
+# --- BRANDING & UI CONFIGURATION ---
 st.set_page_config(page_title="Agency Admin", page_icon="📊", layout="wide")
 
-# Custom CSS for Hero Box & Theme
+# Custom CSS to match Client Portals (Burgundy #3b0710 & Gold #D4AF37)
 st.markdown(f"""
     <style>
     .stApp {{ border-top: 8px solid #D4AF37; }}
@@ -35,11 +35,16 @@ st.markdown(f"""
     h3 {{ color: #3b0710 !important; }}
     div[data-testid="stMetricValue"] {{ color: #3b0710; }}
     [data-testid="stExpander"] {{ border: 1px solid #D4AF37; border-radius: 5px; background-color: #fdfaf3; }}
-    .stButton>button {{ background-color: #3b0710; color: white; border-radius: 5px; }}
+    .stButton>button {{ background-color: #3b0710; color: white; border-radius: 5px; border: none; }}
+    .stButton>button:hover {{ background-color: #D4AF37; color: #3b0710; }}
+    
+    /* Table & Tab Styling */
+    .stTabs [data-baseweb="tab-list"] {{ gap: 24px; }}
+    .stTabs [data-baseweb="tab"] {{ color: #3b0710; font-weight: 600; }}
     </style>
 """, unsafe_allow_html=True)
 
-# Data Connection
+# --- DATA ENGINE ---
 @st.cache_data(ttl=600)
 def get_data():
     try:
@@ -48,13 +53,16 @@ def get_data():
         prod_df = pd.DataFrame(sh.worksheet("Product").get_all_records())
         rec_df = pd.DataFrame(sh.worksheet("Recruitment").get_all_records())
         
+        # Clean column headers
         prod_df.columns = [c.strip() for c in prod_df.columns]
         rec_df.columns = [c.strip() for c in rec_df.columns]
         
-        return prod_df, rec_df
+        tz = pytz.timezone('US/Central')
+        sync_time = datetime.now(tz).strftime("%I:%M %p")
+        return prod_df, rec_df, sync_time
     except Exception as e:
         st.error(f"Connection Error: {e}")
-        return pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), "Error"
 
 def get_filtered_data(df, timeframe_label):
     if df.empty or 'Timestamp' not in df.columns:
@@ -76,82 +84,163 @@ def get_filtered_data(df, timeframe_label):
     if timeframe_label == "All Time":
         return len(temp_df), 0, temp_df
     
-    # Filter for the selected window
+    # Slice data for the selected window
     current_df = temp_df[temp_df['Timestamp'] > (now - duration)]
     
-    # Calculate delta based on the previous equal window
+    # Calculate delta from previous period
     prev_start = now - (duration * 2)
     prev_end = now - duration
     prev_count = len(temp_df[(temp_df['Timestamp'] > prev_start) & (temp_df['Timestamp'] <= prev_end)])
     
     return len(current_df), (len(current_df) - prev_count), current_df
 
+# --- DASHBOARD EXECUTION ---
 try:
-    raw_prod_df, raw_rec_df = get_data()
+    raw_prod_df, raw_rec_df, last_sync = get_data()
     
     with st.sidebar:
         st.title("🛡️ Admin Panel")
-        timeframe = st.selectbox("Update Period:", ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "6 month", "1 year", "All Time"], index=3)
+        timeframe = st.selectbox(
+            "Performance Period:", 
+            ["1 hr", "12 hr", "24 hr", "1 week", "1 month", "6 month", "1 year", "All Time"], 
+            index=3
+        )
         st.markdown("---")
-        if st.button("🔄 Reload Systems"):
+        if st.button("🔄 Refresh Dataset"):
             st.cache_data.clear()
             st.rerun()
+        st.caption(f"Last Sync: {last_sync} CST")
 
-    # --- HERO BOX HEADER ---
+    # Hero Box Header (Seamless with Client Forms)
     st.markdown(f"""
         <div class="hero-box">
             <h1>📋 Executive Oversight</h1>
-            <p>Secure. Professional. Trusted. | Agency Performance Dashboard</p>
+            <p>Secure. Professional. Trusted. | Internal Lead Management System</p>
         </div>
     """, unsafe_allow_html=True)
 
-    # Dynamic Data Processing
+    # Process Metrics & Chart Data
     p_count, p_delta, filtered_prod = get_filtered_data(raw_prod_df, timeframe)
     r_count, r_delta, filtered_rec = get_filtered_data(raw_rec_df, timeframe)
     
-    # Metrics
+    # Top-Level Metrics
     m1, m2 = st.columns(2)
     m1.metric(f"Product Leads ({timeframe})", p_count, delta=int(p_delta) if timeframe != "All Time" else None)
     m2.metric(f"Recruits ({timeframe})", r_count, delta=int(r_delta) if timeframe != "All Time" else None)
 
-    # Visual Analytics Drawer
-    with st.expander("📈 Strategic Analytics Drawer", expanded=False):
+    # Collapsible Analytics Section
+    with st.expander("📈 Strategic Analytics & Market Trends", expanded=False):
         v1, v2, v3 = st.columns(3)
-        
+        combined = pd.concat([filtered_prod.assign(Cat='Product'), filtered_rec.assign(Cat='Recruit')])
+
         with v1:
             st.write("**Activity Trend**")
-            combined = pd.concat([filtered_prod.assign(Type='P'), filtered_rec.assign(Type='R')])
             if not combined.empty:
-                # Dynamic resampling based on timeframe to keep chart clean
-                resample_rule = 'H' if timeframe in ["1 hr", "12 hr", "24 hr"] else 'D'
-                trend = combined.set_index('Timestamp').resample(resample_rule).size().reset_index(name='Leads')
+                # Use Hourly for short windows, Daily for long ones
+                rule = 'H' if timeframe in ["1 hr", "12 hr", "24 hr"] else 'D'
+                trend = combined.set_index('Timestamp').resample(rule).size().reset_index(name='Leads')
                 fig = px.line(trend, x='Timestamp', y='Leads', color_discrete_sequence=['#3b0710'])
-                fig.update_layout(height=230, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                fig.update_layout(height=240, margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig, use_container_width=True)
 
         with v2:
-            st.write("**Market Share**")
-            loc_col = 'State' if 'State' in filtered_prod.columns else 'City'
-            if not filtered_prod.empty and loc_col in filtered_prod.columns:
+            st.write("**Market Share (Location)**")
+            loc_col = 'State' if 'State' in filtered_prod.columns else ('City' if 'City' in filtered_prod.columns else None)
+            if loc_col and not filtered_prod.empty:
                 loc_data = filtered_prod[loc_col].value_counts().reset_index()
-                fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c'])
-                fig.update_layout(height=230, margin=dict(l=0,r=0,t=0,b=0), showlegend=False)
+                fig = px.pie(loc_data, values='count', names=loc_col, hole=0.4, color_discrete_sequence=['#3b0710', '#D4AF37', '#7d111c', '#a67c00'])
+                fig.update_layout(height=240, margin=dict(l=0,r=0,t=0,b=0), showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
 
         with v3:
-            st.write("**Top Interests**")
-            int_col = 'Product Interest' if 'Product Interest' in filtered_prod.columns else 'Interest'
-            if not filtered_prod.empty and int_col in filtered_prod.columns:
+            st.write("**Interest Breakdown**")
+            int_col = 'Product Interest' if 'Product Interest' in filtered_prod.columns else ('Interest' if 'Interest' in filtered_prod.columns else None)
+            if int_col and not filtered_prod.empty:
                 int_data = filtered_prod[int_col].value_counts().reset_index()
                 fig = px.bar(int_data, x='count', y=int_col, orientation='h', color_discrete_sequence=['#D4AF37'])
-                fig.update_layout(height=230, margin=dict(l=0,r=0,t=0,b=0), xaxis_title=None, yaxis_title=None)
+                fig.update_layout(height=240, margin=dict(l=0,r=0,t=0,b=0), xaxis_title=None, yaxis_title=None)
                 st.plotly_chart(fig, use_container_width=True)
 
-    # --- MANAGEMENT SECTION ---
-    st.markdown("### 🔍 Filtered Lead Inventory")
-    
-    # (Rest of the search, table, and gspread update logic follows here...)
-    # [Rest of code logic exactly as previous complete version]
+    # --- LEAD INVENTORY & SEARCH ---
+    st.markdown("### 🔍 Lead Inventory")
+    s1, s2 = st.columns([2, 1])
+    with s1:
+        search_query = st.text_input("Search Leads:", placeholder="Search by name...")
+    with s2:
+        status_filter = st.selectbox("Status Filter:", ["All", "New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"])
+
+    def process_table(df):
+        if df.empty: return df
+        f = df.copy()
+        if search_query:
+            f = f[f['Full Name'].str.contains(search_query, case=False, na=False)]
+        if status_filter != "All":
+            f = f[f['Status'] == status_filter]
+        
+        # Link Handling
+        if 'Email Address' in f.columns:
+            f['📧'] = f['Email Address'].apply(lambda x: f"mailto:{x}" if x else "")
+        if 'Phone Number' in f.columns:
+            f['📞'] = f['Phone Number'].apply(lambda x: f"tel:{x}" if x else "")
+            
+        # Column Ordering: Sandwich icons next to info
+        cols = list(f.columns)
+        base = [c for c in cols if c not in ['📧', '📞']]
+        if 'Email Address' in base: base.insert(base.index('Email Address') + 1, '📧')
+        if 'Phone Number' in base: base.insert(base.index('Phone Number') + 1, '📞')
+        return f[base]
+
+    table_config = {
+        "Email Address": st.column_config.TextColumn("Email Address"),
+        "📧": st.column_config.LinkColumn(" ", display_text="Email"),
+        "Phone Number": st.column_config.TextColumn("Phone Number"),
+        "📞": st.column_config.LinkColumn(" ", display_text="Call"),
+    }
+
+    t1, t2 = st.tabs(["🛍️ Product Leads", "🤝 Recruitment Leads"])
+    with t1:
+        st.dataframe(process_table(raw_prod_df), use_container_width=True, hide_index=True, column_config=table_config)
+    with t2:
+        st.dataframe(process_table(raw_rec_df), use_container_width=True, hide_index=True, column_config=table_config)
+
+    # --- GOOGLE SHEETS UPDATE FORM ---
+    st.markdown("---")
+    st.subheader("📝 Update Contact Progress")
+    u1, u2 = st.columns([1, 2])
+    with u1:
+        target_ws = st.radio("Update Sheet:", ["Product", "Recruitment"], horizontal=True)
+        active_df = raw_prod_df if target_ws == "Product" else raw_rec_df
+        if not active_df.empty:
+            selected_lead = st.selectbox("Target Lead (Email):", active_df['Email Address'].unique())
+        else:
+            selected_lead = None
+
+    with u2:
+        if selected_lead:
+            row_data = active_df[active_df['Email Address'] == selected_lead].iloc[0]
+            cs1, cs2 = st.columns(2)
+            with cs1:
+                st_opts = ["New", "Contacted", "Interested", "Follow-up Needed", "Enrolled", "Not Interested"]
+                current_st = row_data.get('Status', 'New')
+                new_st = st.selectbox("Set Status:", st_opts, index=st_opts.index(current_st) if current_st in st_opts else 0)
+            with cs2:
+                new_note = st.text_area("Update Notes:", value=str(row_data.get('Notes', '')))
+            
+            if st.button("Commit Changes to Cloud", use_container_width=True):
+                gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+                ws = gc.open("Lead Manager").worksheet(target_ws)
+                cell = ws.find(selected_lead)
+                headers = [h.strip() for h in ws.row_values(1)]
+                ws.update_cell(cell.row, headers.index("Status") + 1, new_st)
+                ws.update_cell(cell.row, headers.index("Notes") + 1, new_note)
+                st.success(f"Successfully updated {selected_lead}")
+                st.cache_data.clear()
+                st.rerun()
+
+    with st.sidebar:
+        st.markdown("---")
+        st.write("[Client Portal](https://insurance-inquiry-xhf7vrf3otrgfvwiki65bm.streamlit.app/)")
+        st.write("[Recruitment Portal](https://insurance-lead-recruitment-fpyfxsjlzqywfqh9639pzf.streamlit.app/)")
 
 except Exception as e:
-    st.error(f"Dashboard Load Error: {e}")
+    st.error(f"Operational Error: {e}")
